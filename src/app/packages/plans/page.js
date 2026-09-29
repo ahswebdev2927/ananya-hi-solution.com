@@ -928,9 +928,9 @@ function PlansContent() {
                           lineHeight: "1.4",
                         }}
                       >
-                        401 Sravya Vatika, Greenlands, Begumpet,
+                        Flat No. 502, Riviera Apartments, Dwarakapuri,
                         <br />
-                        Hyderabad, Telangana - 500016
+                        Punjagutta, Hyderabad, Telangana 500082
                       </p>
                       <div
                         style={{

@@ -1777,7 +1777,7 @@ export default function AdminDashboardPage() {
                         type="text"
                         value={jobLoc}
                         onChange={(e) => setJobLoc(e.target.value)}
-                        placeholder="e.g. Begumpet, Hyderabad (On-site)"
+                        placeholder="e.g. Punjagutta, Hyderabad (On-site)"
                         required
                       />
                     </div>
@@ -1813,7 +1813,7 @@ export default function AdminDashboardPage() {
                       value={jobType}
                       onChange={(e) => setJobType(e.target.value)}
                     >
-                      <option value="Full-Time">Full-Time (Begumpet HQ)</option>
+                      <option value="Full-Time">Full-Time (Punjagutta HQ)</option>
                       <option value="Part-Time">Part-Time / Intern</option>
                       <option value="Contract">Contract / Remote</option>
                     </select>

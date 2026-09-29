@@ -122,8 +122,8 @@ export default function ContactPage() {
       a: "We value your time! Our consultants typically review and respond to all email or form submissions within 2-4 business hours, providing a detailed response or scheduling a discovery call.",
     },
     {
-      q: "Can I schedule a face-to-face consultation at your Begumpet office?",
-      a: "Yes, absolutely! We welcome our clients to visit our headquarters at Sravya Vatika, Begumpet for in-person discussions. Please call us or send an email ahead to schedule a slot so we can ensure the appropriate technical lead is present.",
+      q: "Can I schedule a face-to-face consultation at your Punjagutta office?",
+      a: "Yes, absolutely! We welcome our clients to visit our headquarters at Riviera Apartments, Punjagutta for in-person discussions. Please call us or send an email ahead to schedule a slot so we can ensure the appropriate technical lead is present.",
     },
     {
       q: "Do you offer free cost estimates or project proposals?",
@@ -177,7 +177,7 @@ export default function ContactPage() {
             {/* Location Channel Card */}
             <div className="channel-card">
               <a
-                href="https://maps.google.com/?q=401+Sravya+Vatika,+Greenlands,+Begumpet,+Hyderabad,+Telangana-500016"
+                href="https://www.google.com/maps/place/Ananya+Hi+Solutions/@17.4236443,78.449918,17z/data=!4m6!3m5!1s0x3bcb9183fd7f0d1b:0x33152b32540e8bdc!8m2!3d17.4236782!4d78.4528612!16s%2Fg%2F11ms3900cz?entry=ttu&g_ep=EgoyMDI2MDkyMy4wIKXMDSoASAFQAw%3D%3D"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex flex-col items-center"
@@ -189,7 +189,7 @@ export default function ContactPage() {
                   </svg>
                 </div>
                 <h3 className="channel-title">Visit Our Headquarters</h3>
-                <p className="channel-desc">401 Sravya Vatika, Greenlands, Begumpet, Hyderabad, Telangana-500016</p>
+                <p className="channel-desc">Flat No. 502, Riviera Apartments, Dwarakapuri, Punjagutta, Hyderabad, Telangana 500082</p>
                 <span className="channel-link">Open Google Maps</span>
               </a>
             </div>

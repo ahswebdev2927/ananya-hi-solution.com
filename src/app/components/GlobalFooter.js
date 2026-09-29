@@ -62,7 +62,13 @@ export default function GlobalFooter() {
             <ul className="footer-contact">
               <li className="footer-contact-item">
                 <span className="footer-contact-icon">📍</span>
-                <span>401 Sravya Vatika, Greenlands, Begumpet, Hyderabad - 500016</span>
+                <a 
+                  href="https://www.google.com/maps/place/Ananya+Hi+Solutions/@17.4236443,78.449918,17z/data=!4m6!3m5!1s0x3bcb9183fd7f0d1b:0x33152b32540e8bdc!8m2!3d17.4236782!4d78.4528612!16s%2Fg%2F11ms3900cz?entry=ttu&g_ep=EgoyMDI2MDkyMy4wIKXMDSoASAFQAw%3D%3D"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Flat No. 502, Riviera Apartments, Dwarakapuri, Punjagutta, Hyderabad, Telangana 500082
+                </a>
               </li>
               <li className="footer-contact-item">
                 <span className="footer-contact-icon">📞</span>

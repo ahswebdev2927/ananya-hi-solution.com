@@ -396,7 +396,7 @@ export default function PackagesPage() {
             <ul className="footer-contact">
               <li className="footer-contact-item">
                 <span className="footer-contact-icon">📍</span>
-                <span>401 Sravya Vatika, Greenlands,<br />Begumpet, Hyderabad, Telangana-500016</span>
+                <span>Flat No. 502, Riviera Apartments, Dwarakapuri,<br />Punjagutta, Hyderabad, Telangana 500082</span>
               </li>
               <li className="footer-contact-item">
                 <span className="footer-contact-icon">📞</span>

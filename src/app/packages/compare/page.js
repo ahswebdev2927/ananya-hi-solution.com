@@ -760,7 +760,7 @@ export default function PackageComparePage() {
             <ul className="footer-contact">
               <li className="footer-contact-item">
                 <span className="footer-contact-icon">📍</span>
-                <span>401 Sravya Vatika, Greenlands,<br />Begumpet, Hyderabad, Telangana-500016</span>
+                <span>Flat No. 502, Riviera Apartments, Dwarakapuri,<br />Punjagutta, Hyderabad, Telangana 500082</span>
               </li>
               <li className="footer-contact-item">
                 <span className="footer-contact-icon">📞</span>
@@ -1085,7 +1085,7 @@ export default function PackageComparePage() {
                           <span style={{ background: "#f8fafc", color: "#475569", padding: "3px 8px", borderRadius: "4px", fontSize: "9px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.5px" }}>Service Provider</span>
                           <h3 style={{ fontSize: "14px", fontWeight: "800", color: "#0f172a", margin: "8px 0 2px 0" }}>Ananya Hi Solutions</h3>
                           <p style={{ color: "#475569", fontSize: "11px", margin: "0 0 8px 0", lineHeight: "1.3" }}>
-                            401 Sravya Vatika, Greenlands,<br />Begumpet, Hyderabad, Telangana - 500016
+                            Flat No. 502, Riviera Apartments, Dwarakapuri,<br />Punjagutta, Hyderabad, Telangana 500082
                           </p>
                           <div style={{ fontSize: "11.5px", color: "#0f75bc", fontWeight: "700", lineHeight: "1.5" }}>
                             <div>🌐 www.ananyahisolutions.com</div>
