@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" width="240" height="80">
+      <!-- Icon: Grammarly -->
+      <g transform="translate(20, 16) scale(2)">
+        <path fill="#15C39A" d="M12 0c6.627 0 12 5.373 12 12s-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0zm5.666 8.79a6.002 6.002 0 0 0-4.004-3.565 6 6 0 1 0 5.485 8.163 1.348 1.348 0 0 1 2.502.996 8.683 8.683 0 1 1-7.834-11.758A8.653 8.653 0 0 1 20 6.643v-2.02a1.353 1.353 0 0 1 2.707 0v5.52a1.353 1.353 0 0 1-1.353 1.353h-5.52a1.353 1.353 0 0 1 0-2.707h1.832z"/>
+      </g>
+      <!-- Text: Grammarly -->
+      <text x="80" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="700" fill="#15C39A">grammarly</text>
+    </svg>
