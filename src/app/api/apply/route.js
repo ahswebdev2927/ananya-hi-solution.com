@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "../db-helper";
+import { getDbClient, initDatabaseSchema } from "../db-helper";
 import nodemailer from "nodemailer";
 
-// Next.js API route to process job applications and trigger automated notifications to vedabhavishya.gudivaka@gmail.com
+// Next.js API route to process job applications and trigger automated notifications
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -28,10 +28,8 @@ export async function POST(request) {
     }
 
     // 3. Staging and persisting the application record in the database
-    const db = await readDb();
-    if (!db.applications) {
-      db.applications = [];
-    }
+    await initDatabaseSchema();
+    const db = getDbClient();
 
     const newApplication = {
       id: "app-" + Date.now(),
@@ -46,8 +44,22 @@ export async function POST(request) {
       appliedAt: new Date().toISOString()
     };
 
-    db.applications.push(newApplication);
-    await writeDb(db);
+    await db.execute({
+      sql: `INSERT INTO job_applications (id, job_id, job_title, candidate_name, candidate_email, candidate_phone, cover_letter, resume_file_name, resume_size, applied_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        newApplication.id,
+        newApplication.jobId,
+        newApplication.jobTitle,
+        newApplication.candidateName,
+        newApplication.candidateEmail,
+        newApplication.candidatePhone,
+        newApplication.coverLetter,
+        newApplication.resumeFileName,
+        newApplication.resumeSize,
+        newApplication.appliedAt
+      ]
+    });
 
     // 4. Real Email Sending via Nodemailer / SMTP with graceful fallback
     let emailSent = false;
@@ -113,32 +125,6 @@ Ananya Hi Solutions Careers Portal`,
         emailError = err.message;
         console.error("[SMTP ERROR] Failed to send email via nodemailer:", err);
       }
-    }
-
-    if (!emailSent) {
-      console.log(`
-================================================================================
-[AUTOMATED EMAIL DISPATCH SYSTEM - SIMULATION]
-To: vedabhavishya.gudivaka@gmail.com
-Subject: New Job Application - ${jobTitle} - ${name}
---------------------------------------------------------------------------------
-Dear HR Team,
-
-A new application has been successfully submitted for the "${jobTitle}" position.
-
-Candidate Profile:
-- Name: ${name}
-- Email: ${email}
-- Phone: ${phone}
-- Cover Letter:
-  "${message}"
-
-Attachment:
-- Resume File: ${resumeFile.name} (${(resumeFile.size / 1024).toFixed(2)} KB)
-
-[SYSTEM STATUS]: simulated (reason: ${smtpHost ? `Error: ${emailError}` : 'SMTP credentials not configured in environment variables'}).
-================================================================================
-      `);
     }
 
     return NextResponse.json({

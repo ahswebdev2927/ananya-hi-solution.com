@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "../db-helper";
+import { getDbClient, initDatabaseSchema } from "../db-helper";
 import nodemailer from "nodemailer";
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    // page.js sends: name, email, phone, company, packageTitle, subId
     const { name, email, phone, company, packageTitle, subId } = body;
 
     // 1. Strict validation of all mandatory fields
@@ -14,10 +13,8 @@ export async function POST(request) {
     }
 
     // 2. Persist the lead in the database
-    const db = await readDb();
-    if (!db.unlockedPackages) {
-      db.unlockedPackages = [];
-    }
+    await initDatabaseSchema();
+    const db = getDbClient();
 
     const newLead = {
       id: "lead-" + Date.now(),
@@ -30,12 +27,23 @@ export async function POST(request) {
       submittedAt: new Date().toISOString()
     };
 
-    db.unlockedPackages.push(newLead);
-    await writeDb(db);
+    await db.execute({
+      sql: `INSERT INTO unlocked_leads (id, name, email, phone, company, package_title, sub_id, submitted_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        newLead.id,
+        newLead.name,
+        newLead.email,
+        newLead.phone,
+        newLead.company,
+        newLead.packageTitle,
+        newLead.subId,
+        newLead.submittedAt
+      ]
+    });
 
     // 3. Real Email Sending via SMTP with fallbacks
     let emailSent = false;
-    let emailError = null;
 
     const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
     const smtpUser = process.env.SMTP_USER || "bhavishyagudivaka18@gmail.com";
@@ -88,7 +96,6 @@ Ananya Hi Solutions Support System`,
 
         emailSent = true;
       } catch (err) {
-        emailError = err.message;
         console.error("[SMTP ERROR] Failed to initialize nodemailer transporter:", err);
       }
     }

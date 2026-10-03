@@ -3,7 +3,6 @@
 import React, { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "../../components/Header";
-import { PACKAGE_PLANS_DATA } from "../../../data/plans";
 import Link from "next/link";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";

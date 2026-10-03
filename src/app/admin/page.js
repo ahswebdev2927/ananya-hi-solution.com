@@ -894,14 +894,14 @@ export default function AdminDashboardPage() {
                         <span className="status-dot green"></span>
                         <div className="status-info">
                           <h5>Database Connectivity</h5>
-                          <p>FS-Persisted JSON storage active and safe</p>
+                          <p>SQLite / LibSQL database active and connected</p>
                         </div>
                       </div>
                       <div className="status-item">
                         <span className="status-dot green"></span>
                         <div className="status-info">
                           <h5>Write & Read Access</h5>
-                          <p>Perfect authorization permissions inside /src/data/db.json</p>
+                          <p>Decoupled SQL tables synchronized and active</p>
                         </div>
                       </div>
                       <div className="status-item">
