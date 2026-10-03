@@ -1,171 +1,77 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb, verifyToken } from "../db-helper";
-import { PACKAGE_PLANS_DATA } from "../../../data/plans";
-
-// Default Package Categories from packages/page.js to initialize db if empty
-const DEFAULT_PACKAGE_CATEGORIES = [
-  {
-    title: "Digital Marketing Packages",
-    key: "digital-marketing",
-    cards: [
-      {
-        title: "Social Media Marketing",
-        image: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80",
-        features: [
-          "15-18 High-Quality Creative Posts.",
-          "Competitor Analysis.",
-          "Paid Meta Ads.",
-          "Strategy & Content Calendar"
-        ],
-        link: "/services/digital-marketing/smm"
-      },
-      {
-        title: "Google Ads/PPC Ads",
-        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
-        features: [
-          "Ads Account Setup & Audit.",
-          "Advanced Keyword Research.",
-          "Conversion Tracking.",
-          "Audience Targeting Strategies."
-        ],
-        link: "/services/digital-marketing/google-ads"
-      },
-      {
-        title: "Search Engine Optimization (SEO)",
-        image: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80",
-        features: [
-          "Free Website Audit.",
-          "Keyword Research & Strategy.",
-          "Competitor Analysis & Reporting.",
-          "High-Quality Backlink Building."
-        ],
-        link: "/services/digital-marketing/seo"
-      },
-      {
-        title: "YouTube Production",
-        image: "/images/hero/youtube-seo.png",
-        features: [
-          "Basic, Standard & Premium Plans.",
-          "Channel Setup & Optimisation.",
-          "Cinematic 4K Video Shoots.",
-          "YouTube SEO & Audience Building."
-        ],
-        link: "/services/youtube-seo"
-      },
-      {
-        title: "AEO, GEO, AIO, SXO",
-        image: "/images/hero/aio.jpg",
-        features: [
-          "Complete Website SEO & Audit.",
-          "Answer Engine & AI Visibility.",
-          "Search Experience Optimisation (SXO).",
-          "Social Profile & Brand Mentions."
-        ],
-        link: "/services/aeo"
-      }
-    ]
-  },
-  {
-    title: "Website Packages",
-    key: "websites",
-    cards: [
-      {
-        title: "Static Website Design",
-        image: "/images/static_website_mockup.jpg",
-        features: [
-          "Delivery Within 3 Working Days.",
-          "FREE Web Hosting & SSL for 1 year.",
-          "1 Week FREE Support After Deployment.",
-          "Responsive Design."
-        ],
-        link: "/services/web-design/static"
-      },
-      {
-        title: "Dynamic Website",
-        image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80",
-        features: [
-          "Unlimited Dynamic Web Pages Website.",
-          "FREE Web Hosting & SSL for 1 year.",
-          "1 Week FREE Support After Deployment.",
-          "Responsive Design."
-        ],
-        link: "/services/web-design/dynamic"
-      },
-      {
-        title: "E-Commerce Website",
-        image: "https://images.unsplash.com/photo-1557821552-17105176677c?auto=format&fit=crop&w=800&q=80",
-        features: [
-          "Add & Manage Unlimited Store Products.",
-          "Shopping Cart System.",
-          "Easy Checkout System.",
-          "Secure Payment Gateway Integration."
-        ],
-        link: "/services/web-design/ecommerce"
-      }
-    ]
-  },
-  {
-    title: "App Development Packages",
-    key: "app-development",
-    isSingleCard: true,
-    cards: [
-      {
-        title: "App Development",
-        image: "/images/subservices/ios_app_detail.jpg",
-        features: [
-          "Basic, Standard & Premium Plans.",
-          "Android & iOS App Development.",
-          "Play Store & App Store Publishing.",
-          "6 Months Support & Maintenance."
-        ],
-        link: "/services/mobile-app"
-      }
-    ]
-  },
-  {
-    title: "Special Packages",
-    key: "special",
-    isSingleCard: true,
-    cards: [
-      {
-        title: "Spa Packages",
-        image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80",
-        features: [
-          "Performance Insights Report.",
-          "Social Media Setup (Instagram & Facebook).",
-          "Social Media Management.",
-          "Content Strategy & Planning."
-        ],
-        link: "/services/web-design/spa"
-      }
-    ]
-  }
-];
+import { getDbClient, initDatabaseSchema, verifyToken } from "../db-helper";
 
 export async function GET() {
-  const db = await readDb();
-  let updated = false;
+  try {
+    await initDatabaseSchema();
+    const db = getDbClient();
 
-  // Initialize packages categories if missing
-  if (!db.packages) {
-    db.packages = DEFAULT_PACKAGE_CATEGORIES;
-    updated = true;
+    const [categoriesRes, cardsRes, plansRes] = await Promise.all([
+      db.execute("SELECT key, title, is_single_card as isSingleCard, sort_order FROM package_categories ORDER BY sort_order ASC, rowid ASC"),
+      db.execute("SELECT category_key, title, image, features, link, sort_order FROM package_cards ORDER BY sort_order ASC, id ASC"),
+      db.execute("SELECT card_title, name, icon, price, billing, is_popular as isPopular, features, note, sort_order FROM pricing_plans ORDER BY sort_order ASC, id ASC")
+    ]);
+
+    // Group cards by category
+    const cardsByCategory = {};
+    for (const card of cardsRes.rows) {
+      let parsedFeatures = [];
+      try {
+        parsedFeatures = typeof card.features === "string" ? JSON.parse(card.features) : (card.features || []);
+      } catch (e) {
+        parsedFeatures = [];
+      }
+
+      if (!cardsByCategory[card.category_key]) {
+        cardsByCategory[card.category_key] = [];
+      }
+
+      cardsByCategory[card.category_key].push({
+        title: card.title,
+        image: card.image,
+        features: parsedFeatures,
+        link: card.link
+      });
+    }
+
+    // Build packages list
+    const packages = categoriesRes.rows.map((cat) => ({
+      key: cat.key,
+      title: cat.title,
+      isSingleCard: Boolean(cat.isSingleCard),
+      cards: cardsByCategory[cat.key] || []
+    }));
+
+    // Group plans by card_title
+    const plans = {};
+    for (const p of plansRes.rows) {
+      let parsedFeatures = [];
+      try {
+        parsedFeatures = typeof p.features === "string" ? JSON.parse(p.features) : (p.features || []);
+      } catch (e) {
+        parsedFeatures = [];
+      }
+
+      if (!plans[p.card_title]) {
+        plans[p.card_title] = [];
+      }
+
+      plans[p.card_title].push({
+        name: p.name,
+        icon: p.icon || "🎯",
+        price: p.price,
+        billing: p.billing,
+        isPopular: Boolean(p.isPopular),
+        features: parsedFeatures,
+        note: p.note || ""
+      });
+    }
+
+    return NextResponse.json({ packages, plans });
+  } catch (error) {
+    console.error("Error fetching packages & plans:", error);
+    return NextResponse.json({ error: "Failed to fetch packages" }, { status: 500 });
   }
-
-  // Initialize plans if missing
-  if (!db.plans) {
-    db.plans = PACKAGE_PLANS_DATA;
-    updated = true;
-  }
-
-  if (updated) {
-    await writeDb(db);
-  }
-
-  return NextResponse.json({
-    packages: db.packages,
-    plans: db.plans
-  });
 }
 
 export async function POST(request) {
@@ -181,15 +87,77 @@ export async function POST(request) {
       return NextResponse.json({ error: "Missing required packages or plans data" }, { status: 400 });
     }
 
-    const db = await readDb();
-    db.packages = packages;
-    db.plans = plans;
+    await initDatabaseSchema();
+    const db = getDbClient();
 
-    const success = await writeDb(db);
-    if (!success) throw new Error("Failed to write updated packages to database");
+    // Prepare batch operations
+    const batchStatements = [];
+
+    // 1. Clear existing package structures
+    batchStatements.push({ sql: "DELETE FROM package_cards", args: [] });
+    batchStatements.push({ sql: "DELETE FROM package_categories", args: [] });
+    batchStatements.push({ sql: "DELETE FROM pricing_plans", args: [] });
+
+    // 2. Insert categories & cards
+    if (Array.isArray(packages)) {
+      for (let catIdx = 0; catIdx < packages.length; catIdx++) {
+        const cat = packages[catIdx];
+        batchStatements.push({
+          sql: "INSERT INTO package_categories (key, title, is_single_card, sort_order) VALUES (?, ?, ?, ?)",
+          args: [cat.key, cat.title, cat.isSingleCard ? 1 : 0, catIdx]
+        });
+
+        if (Array.isArray(cat.cards)) {
+          for (let cardIdx = 0; cardIdx < cat.cards.length; cardIdx++) {
+            const card = cat.cards[cardIdx];
+            batchStatements.push({
+              sql: "INSERT INTO package_cards (category_key, title, image, features, link, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
+              args: [
+                cat.key,
+                card.title,
+                card.image || "",
+                JSON.stringify(card.features || []),
+                card.link || "",
+                cardIdx
+              ]
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Insert pricing plans
+    if (plans && typeof plans === "object") {
+      const cardTitles = Object.keys(plans);
+      for (const cardTitle of cardTitles) {
+        const plansList = plans[cardTitle];
+        if (Array.isArray(plansList)) {
+          for (let pIdx = 0; pIdx < plansList.length; pIdx++) {
+            const p = plansList[pIdx];
+            batchStatements.push({
+              sql: "INSERT INTO pricing_plans (card_title, name, icon, price, billing, is_popular, features, note, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              args: [
+                cardTitle,
+                p.name,
+                p.icon || "🎯",
+                p.price,
+                p.billing,
+                p.isPopular ? 1 : 0,
+                JSON.stringify(p.features || []),
+                p.note || "",
+                pIdx
+              ]
+            });
+          }
+        }
+      }
+    }
+
+    await db.batch(batchStatements, "write");
 
     return NextResponse.json({ success: true, packages, plans });
   } catch (error) {
+    console.error("Error saving packages & plans:", error);
     return NextResponse.json({ error: error.message || "Failed to save packages" }, { status: 500 });
   }
 }

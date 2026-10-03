@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "../db-helper";
+import { getDbClient, initDatabaseSchema } from "../db-helper";
 import nodemailer from "nodemailer";
 
 // Next.js API route to process free audit requests and send notifications to the admin
@@ -17,10 +17,8 @@ export async function POST(request) {
     }
 
     // 2. Persist the audit request in the database
-    const db = await readDb();
-    if (!db.audits) {
-      db.audits = [];
-    }
+    await initDatabaseSchema();
+    const db = getDbClient();
 
     const newAudit = {
       id: "audit-" + Date.now(),
@@ -32,12 +30,22 @@ export async function POST(request) {
       submittedAt: new Date().toISOString()
     };
 
-    db.audits.push(newAudit);
-    await writeDb(db);
+    await db.execute({
+      sql: `INSERT INTO audit_requests (id, name, email, phone, company, website, submitted_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        newAudit.id,
+        newAudit.name,
+        newAudit.email,
+        newAudit.phone,
+        newAudit.company,
+        newAudit.website,
+        newAudit.submittedAt
+      ]
+    });
 
     // 3. Email notification via SMTP with nodemailer
     let emailSent = false;
-    let emailError = null;
 
     const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
     const smtpUser = process.env.SMTP_USER || "bhavishyagudivaka18@gmail.com";
@@ -83,32 +91,8 @@ Ananya Hi Solutions Support System`,
         emailSent = true;
         console.log(`[SMTP DISPATCH SYSTEM] Audit email successfully sent to ${adminEmail} via ${smtpHost}`);
       } catch (err) {
-        emailError = err.message;
         console.error("[SMTP ERROR] Failed to send audit email via nodemailer:", err);
       }
-    }
-
-    if (!emailSent) {
-      console.log(`
-================================================================================
-[AUTOMATED EMAIL DISPATCH SYSTEM - SIMULATION]
-To: ${adminEmail}
-Subject: New Free Audit Request from ${name}
---------------------------------------------------------------------------------
-Dear Admin,
-
-You have received a new Free Audit Request from the website's navigation header.
-
-Details:
-- Name: ${name}
-- Email: ${email}
-- Phone: ${phone}
-- Company: ${company || "Not provided"}
-- Website URL: ${website || "Not provided"}
-
-[SYSTEM STATUS]: simulated (reason: SMTP configuration failed or bypassed; logged to console).
-================================================================================
-      `);
     }
 
     return NextResponse.json({

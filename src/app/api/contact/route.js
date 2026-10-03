@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb } from "../db-helper";
+import { getDbClient, initDatabaseSchema } from "../db-helper";
 import nodemailer from "nodemailer";
 
 // Next.js API route to process contact messages and send email notifications to the admin
@@ -14,10 +14,8 @@ export async function POST(request) {
     }
 
     // 2. Persist the message in the database
-    const db = await readDb();
-    if (!db.messages) {
-      db.messages = [];
-    }
+    await initDatabaseSchema();
+    const db = getDbClient();
 
     const newMessage = {
       id: "msg-" + Date.now(),
@@ -28,12 +26,21 @@ export async function POST(request) {
       submittedAt: new Date().toISOString()
     };
 
-    db.messages.push(newMessage);
-    await writeDb(db);
+    await db.execute({
+      sql: `INSERT INTO contact_messages (id, name, phone, email, message, submitted_at) 
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [
+        newMessage.id,
+        newMessage.name,
+        newMessage.phone,
+        newMessage.email,
+        newMessage.message,
+        newMessage.submittedAt
+      ]
+    });
 
     // 3. Real Email Sending via SMTP with fallbacks
     let emailSent = false;
-    let emailError = null;
 
     const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
     const smtpUser = process.env.SMTP_USER || "bhavishyagudivaka18@gmail.com";
@@ -79,7 +86,6 @@ Ananya Hi Solutions Support System`,
         emailSent = true;
         console.log(`[SMTP DISPATCH SYSTEM] Contact email successfully sent to ${adminEmail} via ${smtpHost}`);
       } catch (err) {
-        emailError = err.message;
         console.error("[SMTP ERROR] Failed to send contact email via nodemailer:", err);
       }
     }
