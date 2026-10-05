@@ -41,7 +41,7 @@ function BlogEditorContent() {
   const [blogMetaKeywords, setBlogMetaKeywords] = useState("");
 
   // Image Upload / External URL State
-  const [imageSourceTab, setImageSourceTab] = useState("upload"); // "upload" | "url"
+  const [imageSourceTab, setImageSourceTab] = useState("url"); // "url" (default) | "upload"
   const [externalImageUrl, setExternalImageUrl] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -92,12 +92,12 @@ function BlogEditorContent() {
             const defaultDate = new Date().toLocaleDateString("en-US", defaultDateOptions);
             setBlogDate(post.date || defaultDate);
             setBlogCoverImage(post.coverImage || "");
-            if (post.coverImage && /^https?:\/\//i.test(post.coverImage)) {
-              setImageSourceTab("url");
-              setExternalImageUrl(post.coverImage);
-            } else {
+            if (post.coverImage && post.coverImage.startsWith("/uploads/")) {
               setImageSourceTab("upload");
               setExternalImageUrl("");
+            } else {
+              setImageSourceTab("url");
+              setExternalImageUrl(post.coverImage || "");
             }
             setBlogContent(post.content || "");
             setBlogMetaTitle(post.metaTitle || post.title || "");
@@ -736,7 +736,262 @@ function BlogEditorContent() {
                 {/* RIGHT / SIDEBAR COLUMN */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                   
-                  {/* Publishing Action Box */}
+                  {/* Category & Author Card */}
+                  <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
+                      Category & Author
+                    </h4>
+
+                    <div className="modal-form-group" style={{ marginBottom: "14px" }}>
+                      <label htmlFor="cat-input" style={{ fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px", display: "block" }}>
+                        Category <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <input
+                        id="cat-input"
+                        type="text"
+                        value={blogCategory}
+                        onChange={(e) => setBlogCategory(e.target.value)}
+                        placeholder="e.g. Technology"
+                        required
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
+                      />
+
+                      {/* Quick category badges */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                        {POPULAR_CATEGORIES.map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setBlogCategory(cat)}
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              fontSize: "11px",
+                              border: blogCategory === cat ? "1px solid #0f75bc" : "1px solid #e2e8f0",
+                              background: blogCategory === cat ? "#0f75bc" : "#f8fafc",
+                              color: blogCategory === cat ? "#fff" : "#475569",
+                              cursor: "pointer"
+                            }}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="modal-form-group" style={{ marginBottom: 0 }}>
+                      <label htmlFor="author-input" style={{ fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px", display: "block" }}>
+                        Author Name
+                      </label>
+                      <input
+                        id="author-input"
+                        type="text"
+                        value={blogAuthor}
+                        onChange={(e) => setBlogAuthor(e.target.value)}
+                        placeholder="e.g. Ananya Hi Solutions"
+                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Featured Image Card (Upload or External URL) */}
+                  <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
+                      Featured Image
+                    </h4>
+
+                    {/* Source Toggle Tabs */}
+                    <div style={{ display: "flex", background: "#f1f5f9", borderRadius: "8px", padding: "3px", marginBottom: "14px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setImageSourceTab("url")}
+                        style={{
+                          flex: 1,
+                          padding: "6px 10px",
+                          fontSize: "12px",
+                          fontWeight: imageSourceTab === "url" ? 700 : 500,
+                          background: imageSourceTab === "url" ? "#ffffff" : "transparent",
+                          color: imageSourceTab === "url" ? "#0f75bc" : "#64748b",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          boxShadow: imageSourceTab === "url" ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        🔗 External URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageSourceTab("upload")}
+                        style={{
+                          flex: 1,
+                          padding: "6px 10px",
+                          fontSize: "12px",
+                          fontWeight: imageSourceTab === "upload" ? 700 : 500,
+                          background: imageSourceTab === "upload" ? "#ffffff" : "transparent",
+                          color: imageSourceTab === "upload" ? "#0f75bc" : "#64748b",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          boxShadow: imageSourceTab === "upload" ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        📁 Upload File
+                      </button>
+                    </div>
+
+                    {/* Mode 1: External Image URL (Default) */}
+                    {imageSourceTab === "url" && (
+                      <div>
+                        <label htmlFor="ext-img-input" style={{ fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px", display: "block" }}>
+                          External Image URL
+                        </label>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <input
+                            id="ext-img-input"
+                            type="url"
+                            value={externalImageUrl}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setExternalImageUrl(val);
+                              if (!val) {
+                                setBlogCoverImage("");
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleApplyExternalUrl();
+                              }
+                            }}
+                            placeholder="https://images.unsplash.com/... or https://..."
+                            style={{
+                              flex: 1,
+                              padding: "8px 10px",
+                              borderRadius: "6px",
+                              border: "1px solid #cbd5e1",
+                              fontSize: "12px",
+                              color: "#0f172a"
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleApplyExternalUrl}
+                            className="admin-btn btn-primary-custom"
+                            style={{ padding: "8px 12px", fontSize: "12px" }}
+                          >
+                            Set
+                          </button>
+                        </div>
+                        <p style={{ margin: "8px 0 0", fontSize: "11px", color: "#64748b", lineHeight: 1.4 }}>
+                          Paste any direct image link (.jpg, .png, .webp, Unsplash, Cloudinary, etc.) and click <strong>Set</strong>.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Mode 2: Local Upload */}
+                    {imageSourceTab === "upload" && (
+                      <div>
+                        <p style={{ margin: "0 0 10px", fontSize: "11px", color: "#64748b", lineHeight: 1.5 }}>
+                          Choose file (.jpg, .png, .webp). Stored locally in <code>public/uploads/blogs/{blogId || "id"}/</code>.
+                        </p>
+
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                          onChange={(e) => {
+                            const f = e.target.files[0];
+                            if (f) {
+                              setSelectedFile(f);
+                              setUploadProgress(0);
+                            }
+                          }}
+                          style={{
+                            width: "100%",
+                            fontSize: "12px",
+                            padding: "6px",
+                            border: "1px dashed rgba(15, 117, 188, 0.4)",
+                            borderRadius: "6px",
+                            background: "rgba(15, 117, 188, 0.02)",
+                            marginBottom: "10px"
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={handleImageUpload}
+                          disabled={!selectedFile || isUploading}
+                          className="admin-btn btn-primary-custom"
+                          style={{
+                            width: "100%",
+                            justifyContent: "center",
+                            padding: "8px",
+                            fontSize: "12px",
+                            cursor: !selectedFile || isUploading ? "not-allowed" : "pointer",
+                            opacity: !selectedFile || isUploading ? 0.6 : 1
+                          }}
+                        >
+                          {isUploading ? "⏳ Uploading..." : "⬆️ Upload Image"}
+                        </button>
+
+                        {/* Progress Bar */}
+                        {(isUploading || (uploadProgress > 0 && uploadProgress < 100)) && (
+                          <div style={{ marginTop: "12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "3px", color: "#0f75bc", fontWeight: 600 }}>
+                              <span>Uploading...</span>
+                              <span>{uploadProgress}%</span>
+                            </div>
+                            <div style={{ width: "100%", height: "6px", background: "#e2e8f0", borderRadius: "3px", overflow: "hidden" }}>
+                              <div
+                                style={{
+                                  width: `${uploadProgress}%`,
+                                  height: "100%",
+                                  background: "linear-gradient(90deg, #0f75bc, #22c55e)",
+                                  transition: "width 0.2s ease"
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Image Preview */}
+                    {blogCoverImage && (
+                      <div style={{ marginTop: "14px", border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden" }}>
+                        <img
+                          src={blogCoverImage}
+                          alt="Featured Cover Preview"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
+                          style={{ width: "100%", height: "140px", objectFit: "cover", display: "block" }}
+                        />
+                        <div style={{ padding: "8px 10px", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            color: blogCoverImage.startsWith("http") ? "#0284c7" : "#16a34a"
+                          }}>
+                            {blogCoverImage.startsWith("http") ? "🌐 External URL" : "✓ Local Server Image"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            title={blogCoverImage.startsWith("http") ? "Remove image URL" : "Delete image from server"}
+                            style={{ background: "transparent", border: "none", color: "#ef4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}
+                          >
+                            ✕ Remove
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Publishing Action Box (Bottom / Last Option) */}
                   <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                     <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
                       Publish Settings
@@ -847,261 +1102,6 @@ function BlogEditorContent() {
                         Cancel
                       </Link>
                     </div>
-                  </div>
-
-                  {/* Category & Author Card */}
-                  <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
-                      Category & Author
-                    </h4>
-
-                    <div className="modal-form-group" style={{ marginBottom: "14px" }}>
-                      <label htmlFor="cat-input" style={{ fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px", display: "block" }}>
-                        Category <span style={{ color: "#ef4444" }}>*</span>
-                      </label>
-                      <input
-                        id="cat-input"
-                        type="text"
-                        value={blogCategory}
-                        onChange={(e) => setBlogCategory(e.target.value)}
-                        placeholder="e.g. Technology"
-                        required
-                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
-                      />
-
-                      {/* Quick category badges */}
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
-                        {POPULAR_CATEGORIES.map((cat) => (
-                          <button
-                            key={cat}
-                            type="button"
-                            onClick={() => setBlogCategory(cat)}
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: "12px",
-                              fontSize: "11px",
-                              border: blogCategory === cat ? "1px solid #0f75bc" : "1px solid #e2e8f0",
-                              background: blogCategory === cat ? "#0f75bc" : "#f8fafc",
-                              color: blogCategory === cat ? "#fff" : "#475569",
-                              cursor: "pointer"
-                            }}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="modal-form-group" style={{ marginBottom: 0 }}>
-                      <label htmlFor="author-input" style={{ fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px", display: "block" }}>
-                        Author Name
-                      </label>
-                      <input
-                        id="author-input"
-                        type="text"
-                        value={blogAuthor}
-                        onChange={(e) => setBlogAuthor(e.target.value)}
-                        placeholder="e.g. Ananya Hi Solutions"
-                        style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px" }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Featured Image Card (Upload or External URL) */}
-                  <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
-                      Featured Image
-                    </h4>
-
-                    {/* Source Toggle Tabs */}
-                    <div style={{ display: "flex", background: "#f1f5f9", borderRadius: "8px", padding: "3px", marginBottom: "14px" }}>
-                      <button
-                        type="button"
-                        onClick={() => setImageSourceTab("upload")}
-                        style={{
-                          flex: 1,
-                          padding: "6px 10px",
-                          fontSize: "12px",
-                          fontWeight: imageSourceTab === "upload" ? 700 : 500,
-                          background: imageSourceTab === "upload" ? "#ffffff" : "transparent",
-                          color: imageSourceTab === "upload" ? "#0f75bc" : "#64748b",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          boxShadow: imageSourceTab === "upload" ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-                          transition: "all 0.15s ease"
-                        }}
-                      >
-                        📁 Upload File
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImageSourceTab("url")}
-                        style={{
-                          flex: 1,
-                          padding: "6px 10px",
-                          fontSize: "12px",
-                          fontWeight: imageSourceTab === "url" ? 700 : 500,
-                          background: imageSourceTab === "url" ? "#ffffff" : "transparent",
-                          color: imageSourceTab === "url" ? "#0f75bc" : "#64748b",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          boxShadow: imageSourceTab === "url" ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-                          transition: "all 0.15s ease"
-                        }}
-                      >
-                        🔗 External URL
-                      </button>
-                    </div>
-
-                    {/* Mode 1: Local Upload */}
-                    {imageSourceTab === "upload" && (
-                      <div>
-                        <p style={{ margin: "0 0 10px", fontSize: "11px", color: "#64748b", lineHeight: 1.5 }}>
-                          Choose file (.jpg, .png, .webp). Stored locally in <code>public/uploads/blogs/{blogId || "id"}/</code>.
-                        </p>
-
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                          onChange={(e) => {
-                            const f = e.target.files[0];
-                            if (f) {
-                              setSelectedFile(f);
-                              setUploadProgress(0);
-                            }
-                          }}
-                          style={{
-                            width: "100%",
-                            fontSize: "12px",
-                            padding: "6px",
-                            border: "1px dashed rgba(15, 117, 188, 0.4)",
-                            borderRadius: "6px",
-                            background: "rgba(15, 117, 188, 0.02)",
-                            marginBottom: "10px"
-                          }}
-                        />
-
-                        <button
-                          type="button"
-                          onClick={handleImageUpload}
-                          disabled={!selectedFile || isUploading}
-                          className="admin-btn btn-primary-custom"
-                          style={{
-                            width: "100%",
-                            justifyContent: "center",
-                            padding: "8px",
-                            fontSize: "12px",
-                            cursor: !selectedFile || isUploading ? "not-allowed" : "pointer",
-                            opacity: !selectedFile || isUploading ? 0.6 : 1
-                          }}
-                        >
-                          {isUploading ? "⏳ Uploading..." : "⬆️ Upload Image"}
-                        </button>
-
-                        {/* Progress Bar */}
-                        {(isUploading || (uploadProgress > 0 && uploadProgress < 100)) && (
-                          <div style={{ marginTop: "12px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "3px", color: "#0f75bc", fontWeight: 600 }}>
-                              <span>Uploading...</span>
-                              <span>{uploadProgress}%</span>
-                            </div>
-                            <div style={{ width: "100%", height: "6px", background: "#e2e8f0", borderRadius: "3px", overflow: "hidden" }}>
-                              <div
-                                style={{
-                                  width: `${uploadProgress}%`,
-                                  height: "100%",
-                                  background: "linear-gradient(90deg, #0f75bc, #22c55e)",
-                                  transition: "width 0.2s ease"
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Mode 2: External Image URL */}
-                    {imageSourceTab === "url" && (
-                      <div>
-                        <label htmlFor="ext-img-input" style={{ fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px", display: "block" }}>
-                          External Image URL
-                        </label>
-                        <div style={{ display: "flex", gap: "6px" }}>
-                          <input
-                            id="ext-img-input"
-                            type="url"
-                            value={externalImageUrl}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setExternalImageUrl(val);
-                              if (!val) {
-                                setBlogCoverImage("");
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleApplyExternalUrl();
-                              }
-                            }}
-                            placeholder="https://images.unsplash.com/... or https://..."
-                            style={{
-                              flex: 1,
-                              padding: "8px 10px",
-                              borderRadius: "6px",
-                              border: "1px solid #cbd5e1",
-                              fontSize: "12px",
-                              color: "#0f172a"
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={handleApplyExternalUrl}
-                            className="admin-btn btn-primary-custom"
-                            style={{ padding: "8px 12px", fontSize: "12px" }}
-                          >
-                            Set
-                          </button>
-                        </div>
-                        <p style={{ margin: "8px 0 0", fontSize: "11px", color: "#64748b", lineHeight: 1.4 }}>
-                          Paste any direct image link (.jpg, .png, .webp, Unsplash, Cloudinary, etc.) and click <strong>Set</strong>.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Image Preview */}
-                    {blogCoverImage && (
-                      <div style={{ marginTop: "14px", border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden" }}>
-                        <img
-                          src={blogCoverImage}
-                          alt="Featured Cover Preview"
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                          }}
-                          style={{ width: "100%", height: "140px", objectFit: "cover", display: "block" }}
-                        />
-                        <div style={{ padding: "8px 10px", background: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: blogCoverImage.startsWith("http") ? "#0284c7" : "#16a34a"
-                          }}>
-                            {blogCoverImage.startsWith("http") ? "🌐 External URL" : "✓ Local Server Image"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleRemoveImage}
-                            title={blogCoverImage.startsWith("http") ? "Remove image URL" : "Delete image from server"}
-                            style={{ background: "transparent", border: "none", color: "#ef4444", fontSize: "11px", cursor: "pointer", fontWeight: 600 }}
-                          >
-                            ✕ Remove
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                 </div>
