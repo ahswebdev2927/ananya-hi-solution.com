@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import QuillEditor from "../components/QuillEditor";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -52,12 +53,22 @@ export default function AdminDashboardPage() {
   const [jobReqs, setJobReqs] = useState("");
 
   // Blog
+  const [blogId, setBlogId] = useState("");
   const [blogTitle, setBlogTitle] = useState("");
+  const [blogSlug, setBlogSlug] = useState("");
   const [blogSummary, setBlogSummary] = useState("");
   const [blogContent, setBlogContent] = useState("");
   const [blogCategory, setBlogCategory] = useState("Technology");
   const [blogAuthor, setBlogAuthor] = useState("Ananya Hi Solutions");
   const [blogCoverImage, setBlogCoverImage] = useState("");
+  const [blogMetaTitle, setBlogMetaTitle] = useState("");
+  const [blogMetaDescription, setBlogMetaDescription] = useState("");
+  const [blogMetaKeywords, setBlogMetaKeywords] = useState("");
+
+  // Blog Image Upload States
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Authorization Check
   useEffect(() => {
@@ -66,6 +77,13 @@ export default function AdminDashboardPage() {
       router.push("/admin/login");
     } else {
       setIsAuthorized(true);
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        if (tabParam) {
+          setActiveTab(tabParam);
+        }
+      }
       fetchData();
     }
   }, [router]);
@@ -514,12 +532,20 @@ export default function AdminDashboardPage() {
         setJobDesc(item.description);
         setJobReqs(item.requirements ? item.requirements.join("\n") : "");
       } else if (type === "blog") {
+        setBlogId(item.id);
         setBlogTitle(item.title);
-        setBlogSummary(item.summary);
-        setBlogContent(item.content);
-        setBlogCategory(item.category);
+        setBlogSlug(item.slug || "");
+        setBlogSummary(item.metaDescription || item.summary || "");
+        setBlogContent(item.content || "");
+        setBlogCategory(item.category || "Technology");
         setBlogAuthor(item.author || "Ananya Hi Solutions");
         setBlogCoverImage(item.coverImage || "");
+        setBlogMetaTitle(item.metaTitle || item.title || "");
+        setBlogMetaDescription(item.metaDescription || item.summary || "");
+        setBlogMetaKeywords(item.metaKeywords || "");
+        setSelectedImageFile(null);
+        setUploadProgress(0);
+        setIsUploadingImage(false);
       }
     } else {
       // Clear forms for Add action
@@ -538,12 +564,26 @@ export default function AdminDashboardPage() {
         setJobDesc("");
         setJobReqs("");
       } else if (type === "blog") {
+        const existingIds = (blogs || []).map((b) => b.id);
+        const maxNum = existingIds.reduce((max, id) => {
+          const match = String(id).match(/\d+/);
+          return match ? Math.max(max, parseInt(match[0], 10)) : max;
+        }, 0);
+        const nextId = "post-" + (maxNum + 1);
+        setBlogId(nextId);
         setBlogTitle("");
+        setBlogSlug("");
         setBlogSummary("");
         setBlogContent("");
         setBlogCategory("Technology");
         setBlogAuthor("Ananya Hi Solutions");
         setBlogCoverImage("");
+        setBlogMetaTitle("");
+        setBlogMetaDescription("");
+        setBlogMetaKeywords("");
+        setSelectedImageFile(null);
+        setUploadProgress(0);
+        setIsUploadingImage(false);
       }
     }
 
@@ -585,11 +625,18 @@ export default function AdminDashboardPage() {
           window.mammoth.extractRawText({ arrayBuffer: arrayBuffer })
             .then((result) => {
               const text = result.value;
-              setBlogContent(text);
-              // Auto-fill summary helper
-              const trimmed = text.replace(/\s+/g, ' ').trim();
-              setBlogSummary(trimmed.slice(0, 180) + (trimmed.length > 180 ? "..." : ""));
-              showToast("Successfully extracted .docx content!", true);
+              const formattedHtml = text
+                .split(/\n\s*\n/)
+                .filter((p) => p.trim())
+                .map((p) => `<p>${p.trim()}</p>`)
+                .join("");
+              setBlogContent(formattedHtml || `<p>${text}</p>`);
+              // Auto-fill summary and meta description helper
+              const trimmed = text.replace(/\s+/g, " ").trim();
+              const snippet = trimmed.slice(0, 160);
+              setBlogSummary(snippet);
+              setBlogMetaDescription(snippet);
+              showToast("Successfully extracted .docx content into editor!", true);
             })
             .catch((err) => {
               showToast("Error parsing docx content", false);
@@ -615,13 +662,20 @@ export default function AdminDashboardPage() {
               const page = await pdf.getPage(i);
               const textContent = await page.getTextContent();
               const pageText = textContent.items.map((item) => item.str).join(" ");
-              fullText += pageText + "\n";
+              fullText += pageText + "\n\n";
             }
-            setBlogContent(fullText);
-            // Auto-fill summary helper
-            const trimmed = fullText.replace(/\s+/g, ' ').trim();
-            setBlogSummary(trimmed.slice(0, 180) + (trimmed.length > 180 ? "..." : ""));
-            showToast("Successfully extracted .pdf content!", true);
+            const formattedHtml = fullText
+              .split(/\n\s*\n/)
+              .filter((p) => p.trim())
+              .map((p) => `<p>${p.trim()}</p>`)
+              .join("");
+            setBlogContent(formattedHtml || `<p>${fullText}</p>`);
+            // Auto-fill summary and meta description helper
+            const trimmed = fullText.replace(/\s+/g, " ").trim();
+            const snippet = trimmed.slice(0, 160);
+            setBlogSummary(snippet);
+            setBlogMetaDescription(snippet);
+            showToast("Successfully extracted .pdf content into editor!", true);
           } catch (err) {
             showToast("Error extracting PDF text pages", false);
             console.error(err);
@@ -635,20 +689,71 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Handle image uploading & conversion to base64
-  const handleCoverImageUpload = (e) => {
+  // Handle image file selection
+  const handleImageFileChange = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (file) {
+      const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+      if (!validTypes.includes(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+        showToast("Please choose a valid .jpg, .png, or .webp image", false);
+        return;
+      }
+      setSelectedImageFile(file);
+      setUploadProgress(0);
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setBlogCoverImage(event.target.result);
-      showToast("Cover image loaded successfully!", true);
+  // Upload image to server at public/uploads/blogs/[id]/[filename] with live percentage progress bar
+  const handleFeaturedImageUpload = () => {
+    if (!selectedImageFile) {
+      showToast("Please choose an image file first (.jpg, .png, .webp)", false);
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setUploadProgress(0);
+
+    const formData = new FormData();
+    formData.append("file", selectedImageFile);
+    formData.append("type", "blog");
+    formData.append("blogId", blogId || `post-${Date.now()}`);
+
+    const token = localStorage.getItem("ananya_admin_token");
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percent);
+      }
     };
-    reader.onerror = () => {
-      showToast("Failed to read cover image file", false);
+
+    xhr.onload = () => {
+      setIsUploadingImage(false);
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+          setBlogCoverImage(data.url);
+          setUploadProgress(100);
+          showToast("Cover image uploaded successfully to server!");
+        } else {
+          showToast(data.error || "Failed to upload image", false);
+        }
+      } catch {
+        showToast("Error processing upload response", false);
+      }
     };
-    reader.readAsDataURL(file);
+
+    xhr.onerror = () => {
+      setIsUploadingImage(false);
+      showToast("Network error uploading image", false);
+    };
+
+    xhr.open("POST", "/api/upload", true);
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+    xhr.send(formData);
   };
 
   // Form Submit Handler
@@ -693,12 +798,17 @@ export default function AdminDashboardPage() {
       }
     } else if (modalType === "blog") {
       payload = {
+        id: blogId,
         title: blogTitle,
-        summary: blogSummary,
+        slug: blogSlug,
+        summary: blogMetaDescription || blogSummary || blogTitle,
         content: blogContent,
         category: blogCategory,
         author: blogAuthor || "Ananya Hi Solutions",
         coverImage: blogCoverImage,
+        metaTitle: blogMetaTitle || blogTitle,
+        metaDescription: blogMetaDescription || blogSummary,
+        metaKeywords: blogMetaKeywords,
       };
 
       if (modalAction === "edit") {
@@ -1060,42 +1170,75 @@ export default function AdminDashboardPage() {
                     <h2>News & Published Articles</h2>
                     <p>Publish helpful SEO content and press releases directly to the blog home section</p>
                   </div>
-                  <button className="admin-btn btn-primary-custom" onClick={() => openModal("blog", "add")}>
+                  <Link
+                    href="/admin/blogs/editor"
+                    className="admin-btn btn-primary-custom"
+                    style={{ textDecoration: "none" }}
+                  >
                     ✍️ Publish Blog Article
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="panel-table-wrapper">
                   <table className="panel-table">
                     <thead>
                       <tr>
-                        <th>Article Title</th>
+                        <th>Image</th>
+                        <th>Article Title & Slug</th>
                         <th>Category</th>
                         <th>Publish Date</th>
                         <th>Author</th>
-                        <th>Summary</th>
+                        <th>Meta Summary</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {blogs.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="table-empty-row">No published blog posts. Write your first article today.</td>
+                          <td colSpan="7" className="table-empty-row">No published blog posts. Write your first article today.</td>
                         </tr>
                       ) : (
                         blogs.map((item) => (
                           <tr key={item.id}>
-                            <td className="cell-title font-bold">{item.title}</td>
+                            <td style={{ width: "60px", padding: "8px" }}>
+                              {item.coverImage ? (
+                                <img
+                                  src={item.coverImage}
+                                  alt={item.title}
+                                  style={{ width: "48px", height: "36px", objectFit: "cover", borderRadius: "4px" }}
+                                />
+                              ) : (
+                                <span style={{ fontSize: "20px" }}>📰</span>
+                              )}
+                            </td>
+                            <td className="cell-title font-bold">
+                              <div>{item.title}</div>
+                              <small style={{ color: "#0f75bc", fontFamily: "monospace", display: "block", marginTop: "2px" }}>
+                                /blogs/{item.slug || item.id}
+                              </small>
+                            </td>
                             <td className="cell-badge">
                               <span className="badge-cat">{item.category}</span>
                             </td>
                             <td>{item.date}</td>
                             <td>{item.author}</td>
-                            <td className="cell-desc">{item.summary}</td>
+                            <td className="cell-desc" style={{ maxWidth: "240px" }}>{item.metaDescription || item.summary}</td>
                             <td className="cell-actions">
-                              <button className="btn-action edit" onClick={() => openModal("blog", "edit", item)}>
+                              <Link
+                                href={`/blogs/${item.slug || item.id}`}
+                                target="_blank"
+                                className="btn-action"
+                                style={{ textDecoration: "none", background: "#f1f5f9", color: "#0f75bc", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              >
+                                👁️ View
+                              </Link>
+                              <Link
+                                href={`/admin/blogs/editor?id=${item.id}`}
+                                className="btn-action edit"
+                                style={{ textDecoration: "none" }}
+                              >
                                 ✏️ Edit
-                              </button>
+                              </Link>
                               <button className="btn-action delete" onClick={() => handleDelete("blog", item.id)} disabled={actionLoading}>
                                 🗑️ Delete
                               </button>
@@ -1845,124 +1988,7 @@ export default function AdminDashboardPage() {
                 </>
               )}
 
-              {/* BLOG FIELDS */}
-              {modalType === "blog" && (
-                <>
-                  <div className="modal-form-group">
-                    <label htmlFor="blog-title">Article Title</label>
-                    <input
-                      id="blog-title"
-                      type="text"
-                      value={blogTitle}
-                      onChange={(e) => setBlogTitle(e.target.value)}
-                      placeholder="e.g. How Web Designs Influence E-commerce Revenue"
-                      required
-                    />
-                  </div>
 
-                  <div className="modal-form-row">
-                    <div className="modal-form-group flex-1">
-                      <label htmlFor="blog-cover">Cover Image URL</label>
-                      <input
-                        id="blog-cover"
-                        type="text"
-                        value={blogCoverImage}
-                        onChange={(e) => setBlogCoverImage(e.target.value)}
-                        placeholder="e.g. /images/hero/digital-marketing.png"
-                      />
-                    </div>
-                    <div className="modal-form-group flex-1">
-                      <label htmlFor="blog-cover-file">Upload Cover Image</label>
-                      <input
-                        id="blog-cover-file"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverImageUpload}
-                        className="file-input-custom"
-                        style={{
-                          padding: "6px",
-                          border: "1px dashed rgba(15, 117, 188, 0.3)",
-                          borderRadius: "var(--radius-sm)",
-                          background: "rgba(15, 117, 188, 0.02)",
-                          fontSize: "12px",
-                          color: "#334155"
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="modal-form-group">
-                    <label htmlFor="blog-doc-file">Upload Content File (.docx or .pdf)</label>
-                    <input
-                      id="blog-doc-file"
-                      type="file"
-                      accept=".docx,.pdf"
-                      onChange={handleDocumentUpload}
-                      className="file-input-custom"
-                      style={{
-                        padding: "8px",
-                        border: "1px dashed #ea580c",
-                        borderRadius: "var(--radius-sm)",
-                        background: "rgba(234, 88, 12, 0.02)",
-                        fontSize: "12px",
-                        color: "#334155"
-                      }}
-                    />
-                    <small style={{ color: "#475569", marginTop: "4px", display: "block", fontSize: "11px" }}>
-                      Selecting a document will extract its plain text directly into the article content box below.
-                    </small>
-                  </div>
-
-                  <div className="modal-form-row">
-                    <div className="modal-form-group flex-1">
-                      <label htmlFor="blog-cat">Category</label>
-                      <input
-                        id="blog-cat"
-                        type="text"
-                        value={blogCategory}
-                        onChange={(e) => setBlogCategory(e.target.value)}
-                        placeholder="e.g. Technology, Digital Marketing"
-                        required
-                      />
-                    </div>
-                    <div className="modal-form-group flex-1">
-                      <label htmlFor="blog-author">Author Name</label>
-                      <input
-                        id="blog-author"
-                        type="text"
-                        value={blogAuthor}
-                        onChange={(e) => setBlogAuthor(e.target.value)}
-                        placeholder="e.g. Senior SEO Consultant"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="modal-form-group">
-                    <label htmlFor="blog-sum">Article Summary / Card Snippet</label>
-                    <textarea
-                      id="blog-sum"
-                      value={blogSummary}
-                      onChange={(e) => setBlogSummary(e.target.value)}
-                      placeholder="A short engaging teaser showing in the card list grid..."
-                      rows="2"
-                      required
-                    ></textarea>
-                  </div>
-
-                  <div className="modal-form-group">
-                    <label htmlFor="blog-content">Full Article Content (Markdown or HTML support)</label>
-                    <textarea
-                      id="blog-content"
-                      value={blogContent}
-                      onChange={(e) => setBlogContent(e.target.value)}
-                      placeholder="Write your detailed high-fidelity news or SEO strategies here..."
-                      rows="8"
-                      required
-                    ></textarea>
-                  </div>
-                </>
-              )}
 
               <div className="modal-actions-buttons">
                 <button
