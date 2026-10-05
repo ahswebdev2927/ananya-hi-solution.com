@@ -84,11 +84,15 @@ export async function initDatabaseSchema() {
     `CREATE TABLE IF NOT EXISTS blogs (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
+      slug TEXT UNIQUE,
       summary TEXT NOT NULL,
       content TEXT NOT NULL,
       category TEXT NOT NULL,
       author TEXT DEFAULT 'Ananya Hi Solutions',
       cover_image TEXT,
+      meta_title TEXT,
+      meta_description TEXT,
+      meta_keywords TEXT,
       publish_date TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -209,6 +213,45 @@ export async function initDatabaseSchema() {
 
   for (const stmt of statements) {
     await client.execute(stmt);
+  }
+
+  // Safe migration checks for blogs table extensions (slug & SEO fields)
+  const blogAlterStatements = [
+    "ALTER TABLE blogs ADD COLUMN slug TEXT",
+    "ALTER TABLE blogs ADD COLUMN meta_title TEXT",
+    "ALTER TABLE blogs ADD COLUMN meta_description TEXT",
+    "ALTER TABLE blogs ADD COLUMN meta_keywords TEXT"
+  ];
+
+  for (const alterStmt of blogAlterStatements) {
+    try {
+      await client.execute(alterStmt);
+    } catch {
+      // Column may already exist in SQLite/Turso
+    }
+  }
+
+  try {
+    await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_blogs_slug ON blogs(slug);");
+  } catch {}
+
+  // Backfill missing slugs for any legacy blog records
+  try {
+    const unslugged = await client.execute("SELECT id, title FROM blogs WHERE slug IS NULL OR slug = ''");
+    if (unslugged.rows && unslugged.rows.length > 0) {
+      for (const row of unslugged.rows) {
+        const generatedSlug = (row.title || row.id)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)+/g, "");
+        await client.execute({
+          sql: "UPDATE blogs SET slug = ? WHERE id = ?",
+          args: [generatedSlug || row.id, row.id]
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Slug backfill non-critical error:", err);
   }
 
   schemaInitialized = true;
