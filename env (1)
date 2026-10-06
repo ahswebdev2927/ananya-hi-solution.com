@@ -1,0 +1,30 @@
+TURSO_DATABASE_URL=libsql://ahs-website-prod-ahs-dev.aws-ap-south-1.turso.io
+TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTEwMTU0NzMsImlkIjoiMDFhMTAwY2YtYTIwMS03OTAwLWIzYzctNjIwOTI0NDQxNDIwIiwia2lkIjoidUlENmZjWkRmWG05V3gzZTJuaUtPMmFaZ2gyY1VSVFZWR1dKMWZ1SkJIRSIsInJpZCI6ImQ2ZTIyMGQyLWY3ZmEtNGZiZS04ZmMxLWU1OWIxM2MzMjE5MiJ9.zUfvZLwY1r3MECp7ful9x_bU0UrhIxFWzBwF4l-AUktSLoSt42--m4nNh-zxCNYvuJJRSVuCCHD6tbXNT8BYAA
+
+
+ADMIN_USERNAME=ananya_admin
+ADMIN_PASSWORD=ananya_admin@2026
+
+
+# SMTP configuration for real email sending.
+
+# SMTP Host (e.g., smtp.gmail.com for Gmail, smtp.sendgrid.net for SendGrid)
+SMTP_HOST=smtp.gmail.com
+
+# SMTP Port (commonly 587 for TLS, or 465 for SSL)
+SMTP_PORT=587
+
+# Set to true if port is 465 (SSL), false for other ports (TLS/unsecure)
+SMTP_SECURE=false
+
+# SMTP Username / Auth User (e.g., your-email@gmail.com)
+SMTP_USER=your-email@gmail.com
+
+# SMTP Password / Auth Password (for Gmail, generate a 16-character App Password)
+SMTP_PASS=your-app-password
+
+# Email Address to show in the "From" field of the email (must match auth username or be allowed by sender policy)
+SMTP_FROM="Ananya Hi Solutions Careers" <your-email@gmail.com>
+
+# Proposal Discount Authorization Passcodes (comma-separated)
+DISCOUNT_PASSCODES=TEAMAHS@2026,AHSDISCOUNT@2026
