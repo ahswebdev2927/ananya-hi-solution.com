@@ -41,6 +41,8 @@ export default function AdminDashboardPage() {
   const [serviceTitle, setServiceTitle] = useState("");
   const [serviceDesc, setServiceDesc] = useState("");
   const [serviceIcon, setServiceIcon] = useState("globe");
+  const [serviceImage, setServiceImage] = useState("");
+  const [isUploadingServiceImg, setIsUploadingServiceImg] = useState(false);
 
   // Job
   const [jobTitle, setJobTitle] = useState("");
@@ -522,6 +524,7 @@ export default function AdminDashboardPage() {
         setServiceTitle(item.title);
         setServiceDesc(item.desc);
         setServiceIcon(item.iconName || "globe");
+        setServiceImage(item.image || "");
       } else if (type === "job") {
         setJobTitle(item.title);
         setJobDept(item.department);
@@ -554,6 +557,7 @@ export default function AdminDashboardPage() {
         setServiceTitle("");
         setServiceDesc("");
         setServiceIcon("globe");
+        setServiceImage("");
       } else if (type === "job") {
         setJobTitle("");
         setJobDept("");
@@ -772,6 +776,7 @@ export default function AdminDashboardPage() {
         title: serviceTitle,
         desc: serviceDesc,
         iconName: serviceIcon,
+        image: serviceImage,
       };
       if (modalAction === "edit") {
         payload.id = currentItem.id; // Keep original ID
@@ -1060,6 +1065,7 @@ export default function AdminDashboardPage() {
                     <thead>
                       <tr>
                         <th>Icon</th>
+                        <th>Image</th>
                         <th>Unique ID</th>
                         <th>Service Title</th>
                         <th>Description (Summary)</th>
@@ -1069,13 +1075,24 @@ export default function AdminDashboardPage() {
                     <tbody>
                       {services.length === 0 ? (
                         <tr>
-                          <td colSpan="5" className="table-empty-row">No services found in database. Add one to begin.</td>
+                          <td colSpan="6" className="table-empty-row">No services found in database. Add one to begin.</td>
                         </tr>
                       ) : (
                         services.map((item) => (
                           <tr key={item.id}>
                             <td className="cell-icon">
                               <span className="icon-badge">{item.iconName ? `🎨 ${item.iconName}` : "🌐"}</span>
+                            </td>
+                            <td className="cell-image" style={{ width: "60px", textAlign: "center" }}>
+                              {item.image ? (
+                                <img 
+                                  src={item.image} 
+                                  alt={item.title} 
+                                  style={{ width: "42px", height: "42px", borderRadius: "8px", objectFit: "cover", border: "1px solid #cbd5e1", display: "inline-block" }} 
+                                />
+                              ) : (
+                                <span style={{ fontSize: "11px", color: "#94a3b8", background: "#f1f5f9", padding: "4px 6px", borderRadius: "4px", display: "inline-block" }}>Default</span>
+                              )}
                             </td>
                             <td className="cell-id"><code>{item.id}</code></td>
                             <td className="cell-title font-bold">{item.title}</td>
@@ -1546,7 +1563,7 @@ export default function AdminDashboardPage() {
                                 updated[idx].bgImage = e.target.value;
                                 setBanners(updated);
                               }}
-                              placeholder="e.g. /images/hero/digital-marketing.png"
+                              placeholder="Paste Cloudinary URL or click Upload..."
                               style={{ flex: 1, padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "6px", color: "#0f172a", fontSize: "14px" }}
                             />
                             <label style={{ padding: "10px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", display: "inline-flex", alignItems: "center" }}>
@@ -1557,14 +1574,15 @@ export default function AdminDashboardPage() {
                                 onChange={async (e) => {
                                   const file = e.target.files[0];
                                   if (!file) return;
-                                  showToast("Uploading image...", true);
+                                  showToast("Uploading banner to Cloudinary...", true);
                                   const formData = new FormData();
                                   formData.append("file", file);
+                                  formData.append("type", "banner");
                                   try {
                                     const res = await fetch("/api/upload", {
                                       method: "POST",
                                       headers: {
-                                        Authorization: `Bearer ${localStorage.getItem("ananya_admin_token")}`
+                                        Authorization: `Bearer ${localStorage.getItem("ananya_admin_token") || localStorage.getItem("ahs_admin_token")}`
                                       },
                                       body: formData
                                     });
@@ -1573,7 +1591,7 @@ export default function AdminDashboardPage() {
                                       const updated = [...banners];
                                       updated[idx].bgImage = data.url;
                                       setBanners(updated);
-                                      showToast("Image uploaded successfully!", true);
+                                      showToast("Banner uploaded successfully!", true);
                                     } else {
                                       showToast(data.error || "Failed to upload image", false);
                                     }
@@ -1690,7 +1708,7 @@ export default function AdminDashboardPage() {
                             type="text" 
                             value={logo.src} 
                             onChange={(e) => updateMarqueeLogo(idx, "src", e.target.value)}
-                            placeholder="/portfolio_images/logo.png"
+                            placeholder="Paste Cloudinary URL or click Upload..."
                             style={{ flex: 1, padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", color: "#0f172a", fontSize: "13px" }}
                           />
                           <label style={{ padding: "8px 12px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "#475569", display: "inline-flex", alignItems: "center" }}>
@@ -1701,14 +1719,15 @@ export default function AdminDashboardPage() {
                               onChange={async (e) => {
                                 const file = e.target.files[0];
                                 if (!file) return;
-                                showToast("Uploading logo...", true);
+                                showToast("Uploading logo to Cloudinary...", true);
                                 const formData = new FormData();
                                 formData.append("file", file);
+                                formData.append("type", "logo");
                                 try {
                                   const res = await fetch("/api/upload", {
                                     method: "POST",
                                     headers: {
-                                      Authorization: `Bearer ${localStorage.getItem("ananya_admin_token")}`
+                                      Authorization: `Bearer ${localStorage.getItem("ananya_admin_token") || localStorage.getItem("ahs_admin_token")}`
                                     },
                                     body: formData
                                   });
@@ -1871,12 +1890,109 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div className="modal-form-group">
+                    <label htmlFor="serv-image">Service Card Background Image</label>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <input
+                        id="serv-image"
+                        type="text"
+                        value={serviceImage}
+                        onChange={(e) => setServiceImage(e.target.value)}
+                        placeholder="Paste Cloudinary URL or click Upload Image..."
+                        style={{ flex: 1 }}
+                      />
+                      <label style={{ 
+                        padding: "10px 16px", 
+                        background: "#f1f5f9", 
+                        border: "1px solid #cbd5e1", 
+                        borderRadius: "6px", 
+                        cursor: isUploadingServiceImg ? "not-allowed" : "pointer", 
+                        fontSize: "13px", 
+                        fontWeight: "600", 
+                        color: "#475569", 
+                        display: "inline-flex", 
+                        alignItems: "center",
+                        whiteSpace: "nowrap"
+                      }}>
+                        {isUploadingServiceImg ? "⏳ Uploading..." : "📁 Upload Image"}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          style={{ display: "none" }} 
+                          disabled={isUploadingServiceImg}
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            setIsUploadingServiceImg(true);
+                            showToast("Uploading service image to Cloudinary...", true);
+                            const formData = new FormData();
+                            formData.append("file", file);
+                            formData.append("type", "service");
+                            try {
+                              const token = localStorage.getItem("ananya_admin_token") || localStorage.getItem("ahs_admin_token");
+                              const res = await fetch("/api/upload", {
+                                method: "POST",
+                                headers: {
+                                  ...(token ? { Authorization: `Bearer ${token}` } : {})
+                                },
+                                body: formData
+                              });
+                              const data = await res.json();
+                              if (res.ok && data.url) {
+                                setServiceImage(data.url);
+                                showToast("Service image uploaded successfully to Cloudinary!", true);
+                              } else {
+                                showToast(data.error || "Failed to upload image", false);
+                              }
+                            } catch (err) {
+                              showToast("Network error uploading image", false);
+                              console.error(err);
+                            } finally {
+                              setIsUploadingServiceImg(false);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                    {serviceImage && (
+                      <div style={{ marginTop: "10px", position: "relative", width: "120px", height: "80px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                        <img src={serviceImage} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <button 
+                          type="button" 
+                          onClick={() => setServiceImage("")} 
+                          style={{ 
+                            position: "absolute", 
+                            top: "4px", 
+                            right: "4px", 
+                            background: "rgba(0,0,0,0.6)", 
+                            color: "#fff", 
+                            border: "none", 
+                            borderRadius: "50%", 
+                            width: "20px", 
+                            height: "20px", 
+                            fontSize: "11px", 
+                            cursor: "pointer", 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center" 
+                          }}
+                          title="Remove image"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    <small style={{ color: "#64748b", marginTop: "4px", display: "block" }}>
+                      Card background image displayed on the home page service card (with hover dark-dim and rising text animation). Not displayed in header/footer.
+                    </small>
+                  </div>
+
+                  <div className="modal-form-group">
                     <label htmlFor="serv-desc">Description Summary</label>
                     <textarea
                       id="serv-desc"
                       value={serviceDesc}
                       onChange={(e) => setServiceDesc(e.target.value)}
-                      placeholder="Enter a stunning high-converting description card text..."
+                      placeholder="Enter description text or bullet points (separate lines with newlines)..."
                       rows="4"
                       required
                     ></textarea>
@@ -2047,7 +2163,7 @@ export default function AdminDashboardPage() {
                     required 
                     value={editingCard.card.image} 
                     onChange={(e) => setEditingCard({ ...editingCard, card: { ...editingCard.card, image: e.target.value } })}
-                    placeholder="e.g. https://images.unsplash.com/..." 
+                    placeholder="Paste Cloudinary URL or click Upload..." 
                     style={{ flex: 1, padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "6px", color: "#0f172a" }} 
                   />
                   <label style={{ padding: "10px 16px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", display: "inline-flex", alignItems: "center" }}>
@@ -2058,14 +2174,15 @@ export default function AdminDashboardPage() {
                       onChange={async (e) => {
                         const file = e.target.files[0];
                         if (!file) return;
-                        showToast("Uploading image...", true);
+                        showToast("Uploading card image to Cloudinary...", true);
                         const formData = new FormData();
                         formData.append("file", file);
+                        formData.append("type", "package");
                         try {
                           const res = await fetch("/api/upload", {
                             method: "POST",
                             headers: {
-                              Authorization: `Bearer ${localStorage.getItem("ananya_admin_token")}`
+                              Authorization: `Bearer ${localStorage.getItem("ananya_admin_token") || localStorage.getItem("ahs_admin_token")}`
                             },
                             body: formData
                           });

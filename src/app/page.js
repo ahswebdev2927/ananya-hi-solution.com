@@ -61,6 +61,50 @@ const MARQUEE_LOGOS = [
   { src: "/portfolio_images/shanmukha_logo.png", name: "Shanmukha Gold" },
 ];
 
+// Default fallback card images for core services
+const DEFAULT_SERVICE_CARD_IMAGES = {
+  "web-design": "/images/hero/web-design.png",
+  "digital-marketing": "/images/hero/digital-marketing.png",
+  "mobile-app": "/images/hero/mobile-app.png",
+  "ecommerce-app": "/images/hero/ecommerce-app.png",
+  "video-production": "/images/hero/video-production.jpg",
+  "software-development": "/images/hero/software-development.png",
+  "aeo": "/images/hero/aeo.png",
+  "geo": "/images/hero/geo.png",
+  "aio": "/images/hero/aio.jpg",
+  "sxo": "/images/hero/sxo.jpg",
+  "youtube-seo": "/images/hero/youtube-seo.png",
+  "youtube-ads": "/images/hero/youtube-ads.png",
+};
+
+function getServiceCardImage(service) {
+  if (service?.image && service.image.trim()) {
+    return service.image.trim();
+  }
+  return DEFAULT_SERVICE_CARD_IMAGES[service?.id] || "/images/hero/web-design.png";
+}
+
+function renderServiceDescription(desc) {
+  if (!desc) return null;
+  const lines = desc.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length > 1) {
+    return (
+      <ul className="service-card-bullet-list">
+        {lines.map((line, idx) => {
+          const cleanLine = line.replace(/^[•\-\*]\s*/, "");
+          return (
+            <li key={idx} className="service-card-bullet-item">
+              <span className="bullet-dot" />
+              <span>{cleanLine}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+  return <p className="service-card-description">{desc}</p>;
+}
+
 // Service Icon SVG Mapper Helper
 function renderServiceIcon(iconName) {
   switch (iconName) {
@@ -1297,14 +1341,34 @@ export default function Home() {
                 <Link
                   key={item.id}
                   href={`/services/${item.id}`}
-                  className="service-card glass"
+                  className="service-interactive-card"
                   style={{ textDecoration: "none" }}
                 >
-                  <div className="service-icon-wrapper">
-                    {renderServiceIcon(item.iconName)}
+                  {/* Background Image Layer */}
+                  <div
+                    className="service-card-bg-image"
+                    style={{ backgroundImage: `url(${getServiceCardImage(item)})` }}
+                  />
+
+                  {/* Dull / Dark Dimming Overlay */}
+                  <div className="service-card-overlay" />
+
+                  {/* Card Content (Title, Description, Know More Button) */}
+                  <div className="service-card-content">
+                    <div className="service-card-header">
+                      <h3 className="service-card-title">{item.title}</h3>
+                      <div className="service-card-underline" />
+                    </div>
+
+                    <div className="service-card-body">
+                      {renderServiceDescription(item.desc)}
+                      <div className="service-card-btn-wrapper">
+                        <span className="service-card-know-more-btn">
+                          Know More
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="service-title">{item.title}</h3>
-                  <p className="service-desc">{item.desc}</p>
                 </Link>
               ))
             )}

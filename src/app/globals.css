@@ -511,8 +511,231 @@ button {
 /* Services Grid & Cards */
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 30px;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .services-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Interactive Service Card (Reference: Images 2 & 3) */
+.service-interactive-card {
+  position: relative;
+  min-height: 420px;
+  height: 420px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 30px 24px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  background-color: #041421;
+  text-decoration: none !important;
+}
+
+/* Background image layer */
+.service-card-bg-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.45s ease, opacity 0.45s ease;
+  z-index: 1;
+}
+
+/* Initial overlay: Subtle gradient from bottom for readability */
+.service-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(3, 18, 30, 0.05) 0%,
+    rgba(3, 18, 30, 0.35) 45%,
+    rgba(3, 18, 30, 0.88) 100%
+  );
+  z-index: 2;
+  transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Content Container */
+.service-card-content {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transform: translateY(0);
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Title & Underline */
+.service-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.service-card-title {
+  font-family: var(--font-headings);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff !important;
+  margin: 0;
+  line-height: 1.3;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  letter-spacing: -0.01em;
+}
+
+.service-card-underline {
+  width: 44px;
+  height: 3.5px;
+  background: #f97316; /* Vibrant orange matching images */
+  margin-top: 10px;
+  border-radius: 2px;
+  transition: width 0.35s ease, transform 0.35s ease;
+}
+
+/* Description & Button Body: Hidden initially, raising from down on hover */
+.service-card-body {
+  width: 100%;
+  max-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(28px);
+  transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.35s ease,
+              transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.45s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+}
+
+/* Bullet list style matching Image 3 */
+.service-card-bullet-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.service-card-bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #ffffff;
+  font-weight: 500;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.bullet-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #f97316;
+  margin-top: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.service-card-description {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: #ffffff;
+  margin: 18px 0 20px 0;
+  font-weight: 500;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* "Know More" pill button matching Image 3 */
+.service-card-btn-wrapper {
+  width: 100%;
+  margin-top: auto;
+}
+
+.service-card-know-more-btn {
+  display: block;
+  width: 100%;
+  padding: 12px 24px;
+  background-color: #ffffff;
+  color: #0f75bc;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 9999px; /* Pill shape */
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+  user-select: none;
+}
+
+.service-card-know-more-btn:hover {
+  background-color: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  color: #035388;
+}
+
+/* =========================================================
+   Hover State Transitions (Matches Image 3)
+   ========================================================= */
+.service-interactive-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25), 0 0 25px rgba(15, 117, 188, 0.2);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Make background image dull and visible through transparent glass */
+.service-interactive-card:hover .service-card-bg-image {
+  transform: scale(1.06);
+  filter: brightness(0.48) contrast(1.08);
+  opacity: 0.95;
+}
+
+/* Translucent / transparent glassmorphic overlay */
+.service-interactive-card:hover .service-card-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(3, 18, 30, 0.38) 0%,
+    rgba(3, 18, 30, 0.62) 45%,
+    rgba(3, 18, 30, 0.78) 100%
+  );
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* Title raises / shifts up */
+.service-interactive-card:hover .service-card-header {
+  transform: translateY(0);
+}
+
+.service-interactive-card:hover .service-card-underline {
+  width: 60px;
+}
+
+/* Text raises from the down, becomes visible */
+.service-interactive-card:hover .service-card-body {
+  max-height: 350px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
 .service-card {

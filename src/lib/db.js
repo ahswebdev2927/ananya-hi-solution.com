@@ -62,6 +62,7 @@ export async function initDatabaseSchema() {
       title TEXT NOT NULL,
       desc TEXT NOT NULL,
       icon_name TEXT DEFAULT 'globe',
+      image TEXT DEFAULT '',
       sort_order INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -242,6 +243,13 @@ export async function initDatabaseSchema() {
     } catch {
       // Column may already exist in SQLite/Turso
     }
+  }
+
+  // Safe migration check for services table image column
+  try {
+    await client.execute("ALTER TABLE services ADD COLUMN image TEXT;");
+  } catch {
+    // Column may already exist
   }
 
   try {
