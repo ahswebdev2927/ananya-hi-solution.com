@@ -24,6 +24,88 @@ function FooterLogo() {
   );
 }
 
+function InfoTooltip({ text }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <span
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        marginLeft: "6px",
+        verticalAlign: "middle",
+      }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setVisible((prev) => !prev);
+      }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={visible ? "#0f75bc" : "#64748b"}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          transition: "stroke 0.15s ease",
+        }}
+      >
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      {visible && (
+        <span
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            padding: "6px 10px",
+            borderRadius: "6px",
+            fontSize: "11.5px",
+            fontWeight: "500",
+            fontStyle: "normal",
+            lineHeight: "1.4",
+            whiteSpace: "normal",
+            width: "max-content",
+            maxWidth: "240px",
+            textAlign: "center",
+            boxShadow: "0 6px 16px rgba(0, 0, 0, 0.25)",
+            zIndex: 99999,
+            pointerEvents: "none",
+          }}
+        >
+          {text}
+          <span
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              borderWidth: "5px",
+              borderStyle: "solid",
+              borderColor: "#0f172a transparent transparent transparent",
+            }}
+          />
+        </span>
+      )}
+    </span>
+  );
+}
+
 // Helper to recursively expand package plans inheritance (e.g. everything in basic)
 const getExpandedFeatures = (plan, allPlans, visited = new Set()) => {
   if (!plan || !plan.features || visited.has(plan.name)) return [];
@@ -67,6 +149,11 @@ export default function PackageComparePage() {
   const [modalStep, setModalStep] = useState(1); // Step 1: Lead Details, Step 2: Proposal Options
   const [packageDurations, setPackageDurations] = useState({}); // { [packageTitle]: durationMonths }
   const [excludeGst, setExcludeGst] = useState(false);
+  const [applyDiscount, setApplyDiscount] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(18);
+  const [discountCode, setDiscountCode] = useState("");
+  const [isDiscountVerified, setIsDiscountVerified] = useState(false);
+  const [discountError, setDiscountError] = useState("");
 
   const [modalFormData, setModalFormData] = useState({ name: "", company: "", phone: "", email: "" });
   const [modalError, setModalError] = useState("");
@@ -91,7 +178,51 @@ export default function PackageComparePage() {
     return /website|web\s*design|web\s*dev|landing\s*page|e-?commerce|wordpress/i.test(packageTitle);
   };
 
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+
+  const verifyPasscodeApi = async (code) => {
+    if (!code || !code.trim()) return false;
+    try {
+      const res = await fetch("/api/discount/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return !!data.valid;
+      }
+      return false;
+    } catch (err) {
+      console.error("Passcode verification error:", err);
+      return false;
+    }
+  };
+
+  const handleVerifyDiscountCode = async (e) => {
+    if (e) e.preventDefault();
+    if (!discountCode.trim()) {
+      setDiscountError("Please enter an authorization passcode.");
+      setIsDiscountVerified(false);
+      return;
+    }
+    setIsVerifyingCode(true);
+    setDiscountError("");
+    const isValid = await verifyPasscodeApi(discountCode);
+    setIsVerifyingCode(false);
+    if (isValid) {
+      setIsDiscountVerified(true);
+      setDiscountError("");
+    } else {
+      setIsDiscountVerified(false);
+      setDiscountError("Invalid authorization passcode. Please enter a valid passcode.");
+    }
+  };
+
   // Compile selected combo plans and final grand total
+  const numericDiscountPercent = parseFloat(discountPercent) || 0;
+  const hasActiveDiscount = applyDiscount && isDiscountVerified && numericDiscountPercent > 0;
+
   const selectedComboItems = comparisonSlots.map((slot) => {
     if (!slot.packageTitle || !slot.planName) return null;
     const categoryPlans = allPlansData[slot.packageTitle] || [];
@@ -103,9 +234,14 @@ export default function PackageComparePage() {
     const durationMonths = isWebsite ? 1 : (packageDurations[slot.packageTitle] || 1);
 
     const basePrice = rawMonthlyPrice * durationMonths;
-    const baseMonthlyGst = Math.round(rawMonthlyPrice * 0.18);
-    const gstAmount = excludeGst ? 0 : baseMonthlyGst * durationMonths;
-    const totalWithGst = basePrice + gstAmount;
+    const itemDiscount = hasActiveDiscount
+      ? Math.round(basePrice * (numericDiscountPercent / 100))
+      : 0;
+    const discountedBase = basePrice - itemDiscount;
+
+    const baseMonthlyGst = Math.round((discountedBase / durationMonths) * 0.18);
+    const gstAmount = excludeGst ? 0 : Math.round(discountedBase * 0.18);
+    const totalWithGst = discountedBase + gstAmount;
 
     return {
       packageTitle: slot.packageTitle,
@@ -114,6 +250,10 @@ export default function PackageComparePage() {
       durationMonths,
       isWebsite,
       basePrice,
+      hasDiscount: hasActiveDiscount,
+      discountPercent: hasActiveDiscount ? numericDiscountPercent : 0,
+      itemDiscount,
+      discountedBase,
       baseMonthlyGst,
       gstAmount,
       totalWithGst,
@@ -123,8 +263,10 @@ export default function PackageComparePage() {
   }).filter(Boolean);
 
   const totalBase = selectedComboItems.reduce((sum, item) => sum + item.basePrice, 0);
+  const totalDiscount = selectedComboItems.reduce((sum, item) => sum + item.itemDiscount, 0);
+  const totalDiscountedBase = selectedComboItems.reduce((sum, item) => sum + item.discountedBase, 0);
   const totalGst = selectedComboItems.reduce((sum, item) => sum + item.gstAmount, 0);
-  const finalGrandTotal = totalBase + totalGst;
+  const finalGrandTotal = totalDiscountedBase + totalGst;
 
   // === Geometry constants for PDF page layout (all in px at 794×1123 canvas) ===
   const PAGE_CONTENT_HEIGHT = 955;   // 1123 - 40(top pad) - 80(bottom pad) - 18(meta header) - 30(footer)
@@ -328,6 +470,23 @@ export default function PackageComparePage() {
     setModalFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const resetProposalModalForm = () => {
+    setModalStep(1);
+    setPackageDurations({});
+    setExcludeGst(false);
+    setApplyDiscount(false);
+    setDiscountPercent(18);
+    setDiscountCode("");
+    setIsDiscountVerified(false);
+    setDiscountError("");
+    setModalError("");
+  };
+
+  const handleCloseModal = () => {
+    setLeadModalOpen(false);
+    resetProposalModalForm();
+  };
+
   const handleDownloadClick = () => {
     if (typeof window !== "undefined") {
       const savedLead = localStorage.getItem("ahs_lead_info");
@@ -343,8 +502,7 @@ export default function PackageComparePage() {
         } catch (e) {}
       }
     }
-    setModalError("");
-    setModalStep(1);
+    resetProposalModalForm();
     setLeadModalOpen(true);
   };
 
@@ -387,9 +545,34 @@ export default function PackageComparePage() {
     setModalStep(2);
   };
 
-  const handleFinalPdfGenerate = () => {
+  const handleFinalPdfGenerate = async () => {
+    let verified = false;
+    if (applyDiscount) {
+      const numericDiscount = parseFloat(discountPercent);
+      if (isNaN(numericDiscount) || numericDiscount <= 0 || numericDiscount >= 100) {
+        setDiscountError("Please enter a valid discount rate between 1% and 99%.");
+        return;
+      }
+      if (!discountCode.trim()) {
+        setDiscountError("Please enter an authorization passcode.");
+        setIsDiscountVerified(false);
+        return;
+      }
+      setIsVerifyingCode(true);
+      const isValid = await verifyPasscodeApi(discountCode);
+      setIsVerifyingCode(false);
+      if (!isValid) {
+        setIsDiscountVerified(false);
+        setDiscountError("Invalid authorization passcode. Discount cannot be applied.");
+        return;
+      }
+      verified = true;
+      setIsDiscountVerified(true);
+      setDiscountError("");
+    }
     setLeadModalOpen(false);
     triggerPdfGeneration(leadInfo);
+    resetProposalModalForm();
   };
 
   const triggerPdfGeneration = async (currentLeadInfo) => {
@@ -796,7 +979,7 @@ export default function PackageComparePage() {
             zIndex: 99999, 
             padding: "20px" 
           }}
-          onClick={() => setLeadModalOpen(false)}
+          onClick={handleCloseModal}
         >
           <div 
             className="modal-content animate-slide-in"
@@ -820,7 +1003,7 @@ export default function PackageComparePage() {
                 </span>
               </div>
               <button 
-                onClick={() => setLeadModalOpen(false)}
+                onClick={handleCloseModal}
                 style={{ 
                   background: "none", 
                   border: "none", 
@@ -901,7 +1084,7 @@ export default function PackageComparePage() {
                   <button 
                     type="button" 
                     className="modal-btn btn-secondary" 
-                    onClick={() => setLeadModalOpen(false)}
+                    onClick={handleCloseModal}
                     style={{ cursor: "pointer", padding: "10px 20px", border: "1px solid #cbd5e1", background: "#ffffff", borderRadius: "8px", color: "#475569", fontSize: "0.9rem", fontWeight: "700" }}
                   >
                     Cancel
@@ -965,13 +1148,118 @@ export default function PackageComparePage() {
                     onChange={(e) => setExcludeGst(e.target.checked)} 
                     style={{ width: "16px", height: "16px", accentColor: "#0f75bc", cursor: "pointer" }} 
                   />
-                  <span>Exclude GST from proposal (do not mention GST references)</span>
+                  <span style={{ display: "inline-flex", alignItems: "center" }}>
+                    Exclude GST from Proposal
+                    <InfoTooltip text="Check this box to remove all GST calculations and references from the generated quotation PDF." />
+                  </span>
                 </label>
+
+                {/* Apply Discount Section */}
+                <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "0.85rem", fontWeight: "700", color: "#334155" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={applyDiscount} 
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setApplyDiscount(checked);
+                        if (!checked) {
+                          setIsDiscountVerified(false);
+                          setDiscountError("");
+                        }
+                      }} 
+                      style={{ width: "16px", height: "16px", accentColor: "#0f75bc", cursor: "pointer" }} 
+                    />
+                    <span style={{ display: "inline-flex", alignItems: "center" }}>
+                      Apply Discount to Plan
+                      <InfoTooltip text="Apply a percentage discount (requires an authorization passcode)." />
+                    </span>
+                  </label>
+
+                  {applyDiscount && (
+                    <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed #cbd5e1" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "8px", alignItems: "flex-end" }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "700", color: "#475569", marginBottom: "4px" }}>
+                            Custom Discount Rate
+                          </label>
+                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                            <input 
+                              type="number"
+                              min="1"
+                              max="99"
+                              step="any"
+                              placeholder="e.g. 18"
+                              value={discountPercent === 0 ? "" : discountPercent}
+                              onChange={(e) => {
+                                const val = e.target.value === "" ? "" : parseFloat(e.target.value);
+                                setDiscountPercent(val);
+                              }}
+                              style={{ width: "100%", padding: "6px 20px 6px 8px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "0.8rem", fontWeight: "600", color: "#0f172a", background: "#ffffff", outline: "none" }}
+                            />
+                            <span style={{ position: "absolute", right: "6px", fontSize: "0.75rem", fontWeight: "700", color: "#64748b", pointerEvents: "none" }}>
+                              %
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "700", color: "#475569", marginBottom: "4px" }}>
+                            Authorization Passcode
+                          </label>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <input 
+                              type="text"
+                              placeholder="Enter passcode"
+                              value={discountCode}
+                              onChange={(e) => {
+                                setDiscountCode(e.target.value);
+                                setIsDiscountVerified(false);
+                                setDiscountError("");
+                              }}
+                              style={{ flex: 1, minWidth: 0, padding: "6px 8px", borderRadius: "6px", border: isDiscountVerified ? "1.5px solid #10b981" : discountError ? "1.5px solid #ef4444" : "1px solid #cbd5e1", fontSize: "0.8rem", background: "#ffffff", outline: "none" }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleVerifyDiscountCode}
+                              disabled={isVerifyingCode}
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: "6px",
+                                border: "none",
+                                background: isDiscountVerified ? "#10b981" : "#0f75bc",
+                                color: "#ffffff",
+                                fontWeight: "700",
+                                fontSize: "0.75rem",
+                                cursor: isVerifyingCode ? "wait" : "pointer",
+                                whiteSpace: "nowrap",
+                                opacity: isVerifyingCode ? 0.7 : 1,
+                              }}
+                            >
+                              {isVerifyingCode ? "Verifying..." : isDiscountVerified ? "✓ Verified" : "Apply"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {isDiscountVerified && (
+                        <div style={{ marginTop: "6px", color: "#059669", fontSize: "0.75rem", fontWeight: "600" }}>
+                          ✓ Passcode authorized! {discountPercent}% discount active.
+                        </div>
+                      )}
+
+                      {discountError && (
+                        <div style={{ marginTop: "6px", color: "#dc2626", fontSize: "0.75rem", fontWeight: "600", background: "#fef2f2", padding: "4px 8px", borderRadius: "4px", border: "1px solid #fee2e2" }}>
+                          {discountError}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Payment Summary Preview */}
                 <div style={{ background: "#f1f5f9", padding: "12px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
                   <h4 style={{ margin: "0 0 8px 0", fontSize: "0.75rem", fontWeight: "800", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" }}>Payment Summary Preview</h4>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "140px", overflowY: "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "150px", overflowY: "auto" }}>
                     {selectedComboItems.map((item, idx) => (
                       <div key={idx} style={{ fontSize: "0.8rem", borderBottom: "1px dashed #cbd5e1", paddingBottom: "4px" }}>
                         <div style={{ fontWeight: "700", color: "#0f172a" }}>{item.packageTitle} ({item.planName})</div>
@@ -979,10 +1267,22 @@ export default function PackageComparePage() {
                           <span>{!item.isWebsite && item.durationMonths > 1 ? `Plan Amount (₹${item.monthlyPrice.toLocaleString("en-IN")} x ${item.durationMonths} mo):` : "Plan Amount:"}</span>
                           <span style={{ fontWeight: "600", color: "#0f172a" }}>₹{item.basePrice.toLocaleString("en-IN")}</span>
                         </div>
+                        {hasActiveDiscount && (
+                          <>
+                            <div style={{ display: "flex", justifyContent: "space-between", color: "#059669" }}>
+                              <span>Discount ({discountPercent}%):</span>
+                              <span style={{ fontWeight: "600", color: "#059669" }}>- ₹{item.itemDiscount.toLocaleString("en-IN")}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", color: "#1e293b", fontWeight: "600" }}>
+                              <span>Total:</span>
+                              <span>₹{item.discountedBase.toLocaleString("en-IN")}</span>
+                            </div>
+                          </>
+                        )}
                         {!excludeGst && (
                           <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
                             <span>{!item.isWebsite && item.durationMonths > 1 ? `GST 18% (₹${item.baseMonthlyGst.toLocaleString("en-IN")} x ${item.durationMonths} mo):` : "GST 18%:"}</span>
-                            <span style={{ fontWeight: "600", color: "#0f172a" }}>₹{item.gstAmount.toLocaleString("en-IN")}</span>
+                            <span style={{ fontWeight: "600", color: "#0f172a" }}>+ ₹{item.gstAmount.toLocaleString("en-IN")}</span>
                           </div>
                         )}
                       </div>
@@ -1112,6 +1412,9 @@ export default function PackageComparePage() {
                                   <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Sl.</th>
                                   <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Service Package & Selected Plan</th>
                                   <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Base Cost</th>
+                                  {hasActiveDiscount && (
+                                    <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#059669" }}>Discount ({discountPercent}%)</th>
+                                  )}
                                   <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>{excludeGst ? "GST" : "GST (18%)"}</th>
                                   <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Total Cost</th>
                                 </tr>
@@ -1129,6 +1432,9 @@ export default function PackageComparePage() {
                                       ) : null}
                                     </td>
                                     <td style={{ padding: "8px 10px", textAlign: "right", color: "#334155" }}>₹{cItem.basePrice.toLocaleString("en-IN")}</td>
+                                    {hasActiveDiscount && (
+                                      <td style={{ padding: "8px 10px", textAlign: "right", color: "#059669", fontWeight: "600" }}>- ₹{cItem.itemDiscount.toLocaleString("en-IN")}</td>
+                                    )}
                                     <td style={{ padding: "8px 10px", textAlign: "right", color: "#334155" }}>{excludeGst ? "Excluded" : `₹${cItem.gstAmount.toLocaleString("en-IN")}`}</td>
                                     <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", color: "#0f75bc" }}>₹{cItem.totalWithGst.toLocaleString("en-IN")}</td>
                                   </tr>
@@ -1146,7 +1452,14 @@ export default function PackageComparePage() {
                               borderRadius: "8px",
                               padding: "12px 16px"
                             }}>
-                              <span style={{ fontSize: "12px", fontWeight: "800", color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px" }}>Final Combo Grand Total:</span>
+                              <span style={{ fontSize: "12px", fontWeight: "800", color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                Final Combo Grand Total:
+                                {hasActiveDiscount && (
+                                  <span style={{ marginLeft: "6px", color: "#059669", fontSize: "11px", fontWeight: "700" }}>
+                                    ({discountPercent}% Discount Applied)
+                                  </span>
+                                )}
+                              </span>
                               <span style={{ fontSize: "18px", fontWeight: "900", color: "#166534" }}>
                                 ₹{finalGrandTotal.toLocaleString("en-IN")}{" "}
                                 <span style={{ fontSize: "10px", fontWeight: "600" }}>
@@ -1233,10 +1546,22 @@ export default function PackageComparePage() {
                                       <span>{!item.isWebsite && item.durationMonths > 1 ? `Plan Amount (₹${item.monthlyPrice.toLocaleString("en-IN")} x ${item.durationMonths} mo):` : "Plan Amount:"}</span>
                                       <span style={{ fontWeight: "600", color: "#0f172a" }}>₹{item.basePrice.toLocaleString("en-IN")}</span>
                                     </div>
+                                    {hasActiveDiscount && (
+                                      <>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#059669" }}>
+                                          <span>Discount ({discountPercent}%):</span>
+                                          <span style={{ fontWeight: "600", color: "#059669" }}>- ₹{item.itemDiscount.toLocaleString("en-IN")}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#1e293b", fontWeight: "600" }}>
+                                          <span>Total:</span>
+                                          <span>₹{item.discountedBase.toLocaleString("en-IN")}</span>
+                                        </div>
+                                      </>
+                                    )}
                                     {!excludeGst && (
                                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#475569" }}>
                                         <span>{!item.isWebsite && item.durationMonths > 1 ? `GST 18% (₹${item.baseMonthlyGst.toLocaleString("en-IN")} x ${item.durationMonths} mo):` : "GST (18%):"}</span>
-                                        <span style={{ fontWeight: "600", color: "#0f172a" }}>₹{item.gstAmount.toLocaleString("en-IN")}</span>
+                                        <span style={{ fontWeight: "600", color: "#0f172a" }}>+ ₹{item.gstAmount.toLocaleString("en-IN")}</span>
                                       </div>
                                     )}
                                     <div style={{ height: "1px", background: "#cbd5e1", margin: "3px 0" }} />

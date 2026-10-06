@@ -43,6 +43,88 @@ const renderPlanName = (
   return name;
 };
 
+function InfoTooltip({ text }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <span
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        marginLeft: "6px",
+        verticalAlign: "middle",
+      }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setVisible((prev) => !prev);
+      }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={visible ? "#2563eb" : "#64748b"}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          transition: "stroke 0.15s ease",
+        }}
+      >
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      {visible && (
+        <span
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            padding: "6px 10px",
+            borderRadius: "6px",
+            fontSize: "11.5px",
+            fontWeight: "500",
+            fontStyle: "normal",
+            lineHeight: "1.4",
+            whiteSpace: "normal",
+            width: "max-content",
+            maxWidth: "240px",
+            textAlign: "center",
+            boxShadow: "0 6px 16px rgba(0, 0, 0, 0.25)",
+            zIndex: 99999,
+            pointerEvents: "none",
+          }}
+        >
+          {text}
+          <span
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              borderWidth: "5px",
+              borderStyle: "solid",
+              borderColor: "#0f172a transparent transparent transparent",
+            }}
+          />
+        </span>
+      )}
+    </span>
+  );
+}
+
 // Recursively expand "Everything in Basic" and "Everything in Standard" references to full features lists
 const getExpandedFeatures = (plan, allPlans, visited = new Set()) => {
   if (!plan || !plan.features || visited.has(plan.name)) return [];
@@ -139,7 +221,27 @@ function PlansContent() {
   const [selectedPlanForProposal, setSelectedPlanForProposal] = useState(null);
   const [proposalDuration, setProposalDuration] = useState(1);
   const [excludeGst, setExcludeGst] = useState(false);
+  const [applyDiscount, setApplyDiscount] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(18);
+  const [discountCode, setDiscountCode] = useState("");
+  const [isDiscountVerified, setIsDiscountVerified] = useState(false);
+  const [discountError, setDiscountError] = useState("");
   const [proposalCustomizations, setProposalCustomizations] = useState({});
+
+  const resetProposalModalForm = () => {
+    setProposalDuration(1);
+    setExcludeGst(false);
+    setApplyDiscount(false);
+    setDiscountPercent(18);
+    setDiscountCode("");
+    setIsDiscountVerified(false);
+    setDiscountError("");
+  };
+
+  const handleCloseProposalModal = () => {
+    setSelectedPlanForProposal(null);
+    resetProposalModalForm();
+  };
 
   // Reset state during render when packageTitle changes to show loading spinner instantly
   const [prevPackageTitle, setPrevPackageTitle] = useState(packageTitle);
@@ -149,15 +251,52 @@ function PlansContent() {
     setLoading(true);
     setGeneratingPdfId(null);
     setSelectedPlanForProposal(null);
+    resetProposalModalForm();
   }
 
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+
+  const verifyPasscodeApi = async (code) => {
+    if (!code || !code.trim()) return false;
+    try {
+      const res = await fetch("/api/discount/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return !!data.valid;
+      }
+      return false;
+    } catch (err) {
+      console.error("Passcode verification error:", err);
+      return false;
+    }
+  };
+
+  const handleVerifyDiscountCode = async (e) => {
+    if (e) e.preventDefault();
+    if (!discountCode.trim()) {
+      setDiscountError("Please enter an authorization passcode.");
+      setIsDiscountVerified(false);
+      return;
+    }
+    setIsVerifyingCode(true);
+    setDiscountError("");
+    const isValid = await verifyPasscodeApi(discountCode);
+    setIsVerifyingCode(false);
+    if (isValid) {
+      setIsDiscountVerified(true);
+      setDiscountError("");
+    } else {
+      setIsDiscountVerified(false);
+      setDiscountError("Invalid authorization passcode. Please enter a valid passcode.");
+    }
+  };
+
   const handleOpenProposalModal = (plan, idx) => {
-    const existing = proposalCustomizations[idx] || {
-      duration: 1,
-      excludeGst: false,
-    };
-    setProposalDuration(existing.duration || 1);
-    setExcludeGst(existing.excludeGst || false);
+    resetProposalModalForm();
     setSelectedPlanForProposal({ plan, idx });
   };
 
@@ -167,13 +306,49 @@ function PlansContent() {
     const targetDuration = proposalDuration;
     const targetExcludeGst = excludeGst;
 
+    let verified = false;
+    if (applyDiscount) {
+      const numericDiscount = parseFloat(discountPercent);
+      if (isNaN(numericDiscount) || numericDiscount <= 0 || numericDiscount >= 100) {
+        setDiscountError("Please enter a valid discount rate between 1% and 99%.");
+        return;
+      }
+      if (!discountCode.trim()) {
+        setDiscountError("Please enter an authorization passcode.");
+        setIsDiscountVerified(false);
+        return;
+      }
+      setIsVerifyingCode(true);
+      const isValid = await verifyPasscodeApi(discountCode);
+      setIsVerifyingCode(false);
+      if (!isValid) {
+        setIsDiscountVerified(false);
+        setDiscountError("Invalid authorization passcode. Discount cannot be applied.");
+        return;
+      }
+      verified = true;
+      setIsDiscountVerified(true);
+      setDiscountError("");
+    }
+
+    const numericDiscount = parseFloat(discountPercent) || 0;
+    const targetApplyDiscount = applyDiscount && verified && numericDiscount > 0;
+    const targetDiscountPercent = targetApplyDiscount ? numericDiscount : 0;
+
+    const customizationObj = {
+      duration: targetDuration,
+      excludeGst: targetExcludeGst,
+      applyDiscount: targetApplyDiscount,
+      discountPercent: targetDiscountPercent,
+    };
+
     setProposalCustomizations((prev) => ({
       ...prev,
-      [idx]: { duration: targetDuration, excludeGst: targetExcludeGst },
+      [idx]: customizationObj,
     }));
 
-    setSelectedPlanForProposal(null);
-    await handleDownloadInvoice(plan, idx, targetDuration, targetExcludeGst);
+    handleCloseProposalModal();
+    await handleDownloadInvoice(plan, idx, targetDuration, targetExcludeGst, customizationObj);
   };
 
   useEffect(() => {
@@ -320,11 +495,17 @@ function PlansContent() {
     idx,
     durationOverride,
     excludeGstOverride,
+    customizationOverride,
   ) => {
     if (durationOverride !== undefined) {
       setProposalCustomizations((prev) => ({
         ...prev,
-        [idx]: { duration: durationOverride, excludeGst: !!excludeGstOverride },
+        [idx]: {
+          duration: durationOverride,
+          excludeGst: !!excludeGstOverride,
+          applyDiscount: customizationOverride?.applyDiscount || false,
+          discountPercent: customizationOverride?.discountPercent || 0,
+        },
       }));
     }
 
@@ -669,9 +850,13 @@ function PlansContent() {
           const custom = proposalCustomizations[idx] || {
             duration: 1,
             excludeGst: false,
+            applyDiscount: false,
+            discountPercent: 0,
           };
           const durationMonths = custom.duration || 1;
           const isGstExcluded = !!custom.excludeGst;
+          const hasDiscount = !!custom.applyDiscount && custom.discountPercent > 0;
+          const discountRate = hasDiscount ? custom.discountPercent : 0;
 
           // Parse pricing for GST breakdown
           const parsePrice = (priceStr) => {
@@ -680,16 +865,20 @@ function PlansContent() {
             return parseInt(cleanStr, 10) || 0;
           };
           const formatCurrency = (num) => {
-            return "₹" + num.toLocaleString("en-IN");
+            return "₹" + (num || 0).toLocaleString("en-IN");
           };
 
           const rawMonthlyPrice = parsePrice(plan.price);
-          const totalBaseAmount = rawMonthlyPrice * durationMonths;
+          const basePlanAmount = rawMonthlyPrice * durationMonths;
+          const discountAmount = hasDiscount
+            ? Math.round(basePlanAmount * (discountRate / 100))
+            : 0;
+          const discountedBase = basePlanAmount - discountAmount;
 
           // Calculate base monthly GST first, then multiply by duration
-          const baseMonthlyGst = Math.round(rawMonthlyPrice * 0.18);
-          const gstAmount = isGstExcluded ? 0 : baseMonthlyGst * durationMonths;
-          const grandTotal = totalBaseAmount + gstAmount;
+          const baseMonthlyGst = Math.round((discountedBase / durationMonths) * 0.18);
+          const gstAmount = isGstExcluded ? 0 : Math.round(discountedBase * 0.18);
+          const grandTotal = discountedBase + gstAmount;
 
           const durationText =
             durationMonths === 1
@@ -710,7 +899,9 @@ function PlansContent() {
               ? `Plan Amount (${formatCurrency(rawMonthlyPrice)} x ${durationText}):`
               : `Plan Amount:`;
 
-          const planAmountDisplayValue = formatCurrency(totalBaseAmount);
+          const planAmountDisplayValue = formatCurrency(basePlanAmount);
+          const discountDisplayValue = formatCurrency(discountAmount);
+          const discountedBaseDisplayValue = formatCurrency(discountedBase);
           const gstStr = formatCurrency(gstAmount);
           const grandTotalStr = formatCurrency(grandTotal);
 
@@ -1018,29 +1209,72 @@ function PlansContent() {
                         >
                           Payable Amount
                         </div>
-                        <div
-                          style={{
-                            fontSize: "28px",
-                            color: "#1e3a8a",
-                            fontWeight: "800",
-                            margin: "10px 0 20px 0",
-                          }}
-                        >
-                          {formatCurrency(totalBaseAmount)}
-                          {!isGstExcluded && (
-                            <span
+                        {hasDiscount ? (
+                          <div style={{ margin: "6px 0 16px 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                            <div style={{ fontSize: "14px", color: "#94a3b8", textDecoration: "line-through", fontWeight: "600" }}>
+                              {formatCurrency(basePlanAmount)}
+                            </div>
+                            <div
                               style={{
-                                fontSize: "13px",
-                                fontWeight: "600",
-                                color: "#475569",
-                                marginLeft: "5px",
-                                verticalAlign: "middle",
+                                fontSize: "26px",
+                                color: "#1e3a8a",
+                                fontWeight: "800",
+                                margin: "2px 0 4px 0",
                               }}
                             >
-                              +GST
+                              {formatCurrency(discountedBase)}
+                              {!isGstExcluded && (
+                                <span
+                                  style={{
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    color: "#475569",
+                                    marginLeft: "4px",
+                                    verticalAlign: "middle",
+                                  }}
+                                >
+                                  +GST
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: "700",
+                                color: "#059669",
+                                background: "#d1fae5",
+                                padding: "2px 8px",
+                                borderRadius: "10px",
+                              }}
+                            >
+                              {discountRate}% Discount Applied
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              fontSize: "28px",
+                              color: "#1e3a8a",
+                              fontWeight: "800",
+                              margin: "10px 0 20px 0",
+                            }}
+                          >
+                            {formatCurrency(basePlanAmount)}
+                            {!isGstExcluded && (
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  fontWeight: "600",
+                                  color: "#475569",
+                                  marginLeft: "5px",
+                                  verticalAlign: "middle",
+                                }}
+                              >
+                                +GST
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {/* Plan Card */}
                         <div
@@ -1165,6 +1399,41 @@ function PlansContent() {
                                 {planAmountDisplayValue}
                               </span>
                             </div>
+
+                            {hasDiscount && (
+                              <>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    fontSize: "12px",
+                                    color: "#059669",
+                                    margin: "4px 0",
+                                  }}
+                                >
+                                  <span>Discount ({discountRate}%):</span>
+                                  <span
+                                    style={{ fontWeight: "700", color: "#059669" }}
+                                  >
+                                    - {discountDisplayValue}
+                                  </span>
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    fontSize: "12px",
+                                    color: "#1e293b",
+                                    margin: "4px 0",
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  <span>Total:</span>
+                                  <span>{discountedBaseDisplayValue}</span>
+                                </div>
+                              </>
+                            )}
+
                             {!isGstExcluded && (
                               <div
                                 style={{
@@ -1186,7 +1455,7 @@ function PlansContent() {
                                     color: "#1e293b",
                                   }}
                                 >
-                                  {formatCurrency(gstAmount)}
+                                  + {gstStr}
                                 </span>
                               </div>
                             )}
@@ -1468,6 +1737,41 @@ function PlansContent() {
                                   {planAmountDisplayValue}
                                 </span>
                               </div>
+
+                              {hasDiscount && (
+                                <>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      fontSize: "13px",
+                                      color: "#059669",
+                                      margin: "6px 0",
+                                    }}
+                                  >
+                                    <span>Discount ({discountRate}%):</span>
+                                    <span
+                                      style={{ fontWeight: "700", color: "#059669" }}
+                                    >
+                                      - {discountDisplayValue}
+                                    </span>
+                                  </div>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      fontSize: "13px",
+                                      color: "#1e293b",
+                                      margin: "6px 0",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    <span>Total:</span>
+                                    <span>{discountedBaseDisplayValue}</span>
+                                  </div>
+                                </>
+                              )}
+
                               {!isGstExcluded && (
                                 <div
                                   style={{
@@ -1486,7 +1790,7 @@ function PlansContent() {
                                   <span
                                     style={{ fontWeight: "700", color: "#1e293b" }}
                                   >
-                                    {formatCurrency(gstAmount)}
+                                    + {gstStr}
                                   </span>
                                 </div>
                               )}
@@ -1622,10 +1926,18 @@ function PlansContent() {
           };
 
           const rawMonthly = parsePrice(plan.price);
-          const subtotal = rawMonthly * proposalDuration;
-          const baseMonthlyGst = Math.round(rawMonthly * 0.18);
-          const gstVal = excludeGst ? 0 : baseMonthlyGst * proposalDuration;
-          const totalVal = subtotal + gstVal;
+          const basePlanAmount = rawMonthly * proposalDuration;
+          const numericDiscount = parseFloat(discountPercent) || 0;
+          const hasActiveDiscount = applyDiscount && isDiscountVerified && numericDiscount > 0;
+          const discountVal = hasActiveDiscount
+            ? Math.round(basePlanAmount * (numericDiscount / 100))
+            : 0;
+          const discountedBase = basePlanAmount - discountVal;
+          const baseMonthlyGst = Math.round(
+            (discountedBase / proposalDuration) * 0.18,
+          );
+          const gstVal = excludeGst ? 0 : Math.round(discountedBase * 0.18);
+          const totalVal = discountedBase + gstVal;
 
           const durationLabel =
             proposalDuration === 1
@@ -1649,7 +1961,7 @@ function PlansContent() {
                 justifyContent: "center",
                 padding: "20px",
               }}
-              onClick={() => setSelectedPlanForProposal(null)}
+              onClick={handleCloseProposalModal}
             >
               <div
                 style={{
@@ -1697,7 +2009,7 @@ function PlansContent() {
                     </p>
                   </div>
                   <button
-                    onClick={() => setSelectedPlanForProposal(null)}
+                    onClick={handleCloseProposalModal}
                     style={{
                       background: "rgba(255, 255, 255, 0.15)",
                       border: "none",
@@ -1721,7 +2033,7 @@ function PlansContent() {
                 {/* Modal Body */}
                 <div style={{ padding: "24px" }}>
                   {/* 1. Plan Duration Dropdown */}
-                  <div style={{ marginBottom: "20px" }}>
+                  <div style={{ marginBottom: "18px" }}>
                     <label
                       style={{
                         display: "block",
@@ -1767,9 +2079,9 @@ function PlansContent() {
                   {/* 2. Exclude GST Checkbox */}
                   <div
                     style={{
-                      marginBottom: "24px",
+                      marginBottom: "18px",
                       background: "#f1f5f9",
-                      padding: "14px 16px",
+                      padding: "12px 14px",
                       borderRadius: "10px",
                       border: "1px solid #e2e8f0",
                     }}
@@ -1777,7 +2089,7 @@ function PlansContent() {
                     <label
                       style={{
                         display: "flex",
-                        alignItems: "flex-start",
+                        alignItems: "center",
                         gap: "12px",
                         cursor: "pointer",
                       }}
@@ -1789,35 +2101,178 @@ function PlansContent() {
                         style={{
                           width: "18px",
                           height: "18px",
-                          marginTop: "2px",
                           accentColor: "#2563eb",
                           cursor: "pointer",
                         }}
                       />
-                      <div>
-                        <span
-                          style={{
-                            fontSize: "14px",
-                            fontWeight: "700",
-                            color: "#0f172a",
-                            display: "block",
-                          }}
-                        >
-                          Exclude GST from Proposal
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            color: "#64748b",
-                            marginTop: "2px",
-                            display: "block",
-                          }}
-                        >
-                          Check this box to remove all GST calculations and
-                          references from the generated quotation PDF.
-                        </span>
-                      </div>
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: "700",
+                          color: "#0f172a",
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        Exclude GST from Proposal
+                        <InfoTooltip text="Check this box to remove all GST calculations and references from the generated quotation PDF." />
+                      </span>
                     </label>
+                  </div>
+
+                  {/* 3. Apply Discount Checkbox & Passcode */}
+                  <div
+                    style={{
+                      marginBottom: "20px",
+                      background: "#f8fafc",
+                      padding: "12px 14px",
+                      borderRadius: "10px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={applyDiscount}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setApplyDiscount(checked);
+                          if (!checked) {
+                            setIsDiscountVerified(false);
+                            setDiscountError("");
+                          }
+                        }}
+                        style={{
+                          width: "18px",
+                          height: "18px",
+                          accentColor: "#2563eb",
+                          cursor: "pointer",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: "700",
+                          color: "#0f172a",
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        Apply Discount to Plan
+                        <InfoTooltip text="Apply a percentage discount (requires an authorization passcode)." />
+                      </span>
+                    </label>
+
+                    {applyDiscount && (
+                      <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px dashed #cbd5e1" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "10px", alignItems: "flex-end" }}>
+                          <div>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "4px" }}>
+                              Custom Discount Rate
+                            </label>
+                            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                              <input
+                                type="number"
+                                min="1"
+                                max="99"
+                                step="any"
+                                placeholder="e.g. 18"
+                                value={discountPercent === 0 ? "" : discountPercent}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? "" : parseFloat(e.target.value);
+                                  setDiscountPercent(val);
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "8px 24px 8px 10px",
+                                  borderRadius: "6px",
+                                  border: "1px solid #cbd5e1",
+                                  fontSize: "13px",
+                                  fontWeight: "600",
+                                  color: "#0f172a",
+                                  background: "#ffffff",
+                                  outline: "none",
+                                }}
+                              />
+                              <span style={{ position: "absolute", right: "8px", fontSize: "12px", fontWeight: "700", color: "#64748b", pointerEvents: "none" }}>
+                                %
+                              </span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "4px" }}>
+                              Authorization Passcode
+                            </label>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <input
+                                type="text"
+                                placeholder="Enter passcode"
+                                value={discountCode}
+                                onChange={(e) => {
+                                  setDiscountCode(e.target.value);
+                                  setIsDiscountVerified(false);
+                                  setDiscountError("");
+                                }}
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  padding: "8px 10px",
+                                  borderRadius: "6px",
+                                  border: isDiscountVerified
+                                    ? "1.5px solid #10b981"
+                                    : discountError
+                                      ? "1.5px solid #ef4444"
+                                      : "1px solid #cbd5e1",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  background: "#ffffff",
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleVerifyDiscountCode}
+                                disabled={isVerifyingCode}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: "6px",
+                                  border: "none",
+                                  background: isDiscountVerified ? "#10b981" : "#2563eb",
+                                  color: "#ffffff",
+                                  fontWeight: "700",
+                                  fontSize: "12px",
+                                  cursor: isVerifyingCode ? "wait" : "pointer",
+                                  whiteSpace: "nowrap",
+                                  opacity: isVerifyingCode ? 0.7 : 1,
+                                }}
+                              >
+                                {isVerifyingCode ? "Verifying..." : isDiscountVerified ? "✓ Verified" : "Apply"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {isDiscountVerified && (
+                          <div style={{ marginTop: "8px", color: "#059669", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <span>✓</span>
+                            <span>Passcode authorized! {discountPercent}% discount active.</span>
+                          </div>
+                        )}
+
+                        {discountError && (
+                          <div style={{ marginTop: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", background: "#fef2f2", padding: "6px 10px", borderRadius: "6px", border: "1px solid #fee2e2" }}>
+                            {discountError}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Live Payment Summary Box */}
@@ -1862,9 +2317,41 @@ function PlansContent() {
                           :
                         </span>
                         <span style={{ fontWeight: "700", color: "#1e293b" }}>
-                          {formatCurrency(subtotal)}
+                          {formatCurrency(basePlanAmount)}
                         </span>
                       </div>
+
+                      {hasActiveDiscount && (
+                        <>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: "13px",
+                              color: "#059669",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            <span>Discount ({discountPercent}%):</span>
+                            <span style={{ fontWeight: "700", color: "#059669" }}>
+                              - {formatCurrency(discountVal)}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: "13px",
+                              color: "#1e293b",
+                              fontWeight: "600",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            <span>Total:</span>
+                            <span>{formatCurrency(discountedBase)}</span>
+                          </div>
+                        </>
+                      )}
 
                       {!excludeGst ? (
                         <div
@@ -1882,7 +2369,7 @@ function PlansContent() {
                               : "GST (18%):"}
                           </span>
                           <span style={{ fontWeight: "700", color: "#1e293b" }}>
-                            {formatCurrency(gstVal)}
+                            + {formatCurrency(gstVal)}
                           </span>
                         </div>
                       ) : (
@@ -1936,7 +2423,7 @@ function PlansContent() {
                   }}
                 >
                   <button
-                    onClick={() => setSelectedPlanForProposal(null)}
+                    onClick={handleCloseProposalModal}
                     style={{
                       padding: "10px 20px",
                       borderRadius: "8px",
