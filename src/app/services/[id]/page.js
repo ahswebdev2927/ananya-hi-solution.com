@@ -48,8 +48,11 @@ function renderParagraph(text, index, serviceId) {
     case "software-development":
       htmlContent = text.replace("software", `<a href="/services/software-development" style="color: var(--primary-blue); text-decoration: underline; font-weight: 600;">software</a>`);
       break;
+    case "seo":
+      htmlContent = text.replace("Search Engine Optimization", `<a href="/services/seo" style="color: var(--primary-blue); text-decoration: underline; font-weight: 600;">Search Engine Optimization</a>`);
+      break;
     case "aeo":
-      htmlContent = text.replace("Answer Engine Optimization", `<a href="/services/aeo" style="color: var(--primary-blue); text-decoration: underline; font-weight: 600;">Answer Engine Optimization</a>`);
+      htmlContent = text.replace("Search Engine Optimization", `<a href="/services/seo" style="color: var(--primary-blue); text-decoration: underline; font-weight: 600;">Search Engine Optimization</a>`);
       break;
     case "geo":
       htmlContent = text.replace("Google Engine Optimization", `<a href="/services/geo" style="color: var(--primary-blue); text-decoration: underline; font-weight: 600;">Google Engine Optimization</a>`);
@@ -375,35 +378,66 @@ const SERVICES_DETAIL_DATA = {
       { q: "Can your billing software work without an active internet connection?", a: "Yes. We build offline-first billing portals that record invoices locally and automatically sync data with cloud servers once internet connection is restored." }
     ]
   },
-  "aeo": {
-    title: "AEO (Answer Engine)",
-    bannerTitle: "Answer Engine Optimization (AEO) in Hyderabad",
-    bannerDesc: "Optimize your digital presence for conversational search tools. Ananya Hi Solutions structures your site to rank as a cited reference within ChatGPT, Claude, and Gemini.",
-    bannerBadge: "✓ AI-Search Indexing Ready | ⭐️ Rated 5/5 by Tech Startups",
-    heroVisual: "/images/hero/aeo.png",
-    subtypesTitle: "AEO Services in Hyderabad",
-    subtypesDesc: "Structure your site to get cited as a primary reference within ChatGPT Search, Gemini, and Claude.",
-    row1Image: "/images/subservices/aeo-overview.jpg",
-    row2Image: "/images/subservices/aeo-capabilities.jpg",
-    row2Title: "Maximize AI Search Engine Visibility",
+  "seo": {
+    title: "SEO (Search Engine Optimization)",
+    bannerTitle: "SEO (Search Engine Optimization) Company in Hyderabad",
+    bannerDesc: "Boost your organic search rankings and drive targeted buyer traffic to your website. Ananya Hi Solutions delivers data-driven SEO strategies, technical audits, on-page optimization, and high-authority link building.",
+    bannerBadge: "✓ #1 Ranked SEO Agency in Hyderabad | ⭐️ Rated 5/5 by Local Businesses",
+    heroVisual: "/images/hero/seo_banner.jpg",
+    subtypesTitle: "Search Engine Optimization (SEO) Services in Hyderabad",
+    subtypesDesc: "Comprehensive On-Page SEO, Off-Page SEO, Technical SEO, and Local SEO strategies to dominate Google search results.",
+    row1Image: "/images/subservices/seo_side1.jpg",
+    row2Image: "/images/subservices/seo_side2.jpg",
+    row2Title: "Maximize Search Engine Visibility & Drive Organic Traffic",
     types: [
       {
-        id: "aeo",
-        title: "AEO, GEO, AIO, SXO Package",
-        bgImage: "/images/subservices/aeo-capabilities.jpg",
-        desc: "Unlock comprehensive AEO, GEO, AIO, and SXO pricing models designed for startups and modern tech brands."
+        id: "seo",
+        title: "Search Engine Optimization (SEO) Package",
+        bgImage: "/images/subservices/seo_side1.jpg",
+        desc: "Unlock comprehensive On-Page, Off-Page, Technical, and Local SEO packages designed for businesses looking to dominate organic search."
       }
     ],
-    overviewTitle: "Pioneering Answer Engine Optimization",
+    overviewTitle: "Pioneering Search Engine Optimization (SEO) Services",
     paragraphs: [
-      "Traditional search behavior is transitioning rapidly from basic links to direct conversational answers. Answer Engine Optimization (AEO) structures and optimizes your content footprint so that conversational AI platforms select your business as the definitive source.",
-      "We build advanced schema markups, structure FAQ data networks, and craft direct, query-focused content that aligns perfectly with how large language models (LLMs) parse and retrieve information.",
-      "Early adoption of AEO ensures your brand remains visible inside ChatGPT Search, Gemini, and Claude answers, driving compounding organic authority and building trust before a user ever clicks a link."
+      "In today's digital landscape, ranking on the first page of search engine results is essential for driving sustainable business growth. Search Engine Optimization (SEO) aligns your website structure, technical setup, and content with search engine algorithms to drive high-intent organic traffic.",
+      "At Ananya Hi Solutions, we implement comprehensive SEO strategies including in-depth keyword research, technical website audits, on-page content optimization, schema markup integration, fast loading speed enhancements, and ethical link-building.",
+      "Whether you are targeting local customers in Hyderabad or expanding your organic reach globally, our data-driven SEO campaigns deliver consistent ranking growth, increased website authority, and maximum conversion ROI."
     ],
     faqs: [
-      { q: "What is Answer Engine Optimization (AEO)?", a: "AEO is the practice of optimizing content so AI engines like ChatGPT, Gemini, and Claude can easily read, index, and cite your website as the source when answering user questions." },
-      { q: "How do conversational AI search engines find my site?", a: "AI engines crawl structured web indexes, looking for authoritative, highly structured, direct answers. We configure advanced JSON-LD semantic markup to make your content easy for LLMs to reference." },
-      { q: "Is AEO suitable for small businesses?", a: "Yes. Early adoption of AI search optimization gives small businesses and startups a massive competitive advantage, enabling them to outrank larger competitors inside AI search responses." }
+      { q: "What is Search Engine Optimization (SEO)?", a: "SEO is the process of optimizing your website's technical structure, content, and authority to rank higher in organic search engine results pages (SERPs) on Google and Bing." },
+      { q: "How long does it take to see results from SEO?", a: "SEO is a sustainable growth strategy. While technical fixes produce quick indexing improvements, noticeable ranking increases and organic traffic growth typically occur within 3 to 6 months." },
+      { q: "What is the difference between On-Page and Off-Page SEO?", a: "On-Page SEO involves optimizing elements on your website such as content, meta tags, headers, and internal links. Off-Page SEO focuses on building external authority through quality backlinks, brand mentions, and social signals." }
+    ]
+  },
+  "aeo": {
+    title: "SEO (Search Engine Optimization)",
+    bannerTitle: "SEO (Search Engine Optimization) Company in Hyderabad",
+    bannerDesc: "Boost your organic search rankings and drive targeted buyer traffic to your website. Ananya Hi Solutions delivers data-driven SEO strategies, technical audits, on-page optimization, and high-authority link building.",
+    bannerBadge: "✓ #1 Ranked SEO Agency in Hyderabad | ⭐️ Rated 5/5 by Local Businesses",
+    heroVisual: "/images/hero/seo_banner.jpg",
+    subtypesTitle: "Search Engine Optimization (SEO) Services in Hyderabad",
+    subtypesDesc: "Comprehensive On-Page SEO, Off-Page SEO, Technical SEO, and Local SEO strategies to dominate Google search results.",
+    row1Image: "/images/subservices/seo_side1.jpg",
+    row2Image: "/images/subservices/seo_side2.jpg",
+    row2Title: "Maximize Search Engine Visibility & Drive Organic Traffic",
+    types: [
+      {
+        id: "seo",
+        title: "Search Engine Optimization (SEO) Package",
+        bgImage: "/images/subservices/seo_side1.jpg",
+        desc: "Unlock comprehensive On-Page, Off-Page, Technical, and Local SEO packages designed for businesses looking to dominate organic search."
+      }
+    ],
+    overviewTitle: "Pioneering Search Engine Optimization (SEO) Services",
+    paragraphs: [
+      "In today's digital landscape, ranking on the first page of search engine results is essential for driving sustainable business growth. Search Engine Optimization (SEO) aligns your website structure, technical setup, and content with search engine algorithms to drive high-intent organic traffic.",
+      "At Ananya Hi Solutions, we implement comprehensive SEO strategies including in-depth keyword research, technical website audits, on-page content optimization, schema markup integration, fast loading speed enhancements, and ethical link-building.",
+      "Whether you are targeting local customers in Hyderabad or expanding your organic reach globally, our data-driven SEO campaigns deliver consistent ranking growth, increased website authority, and maximum conversion ROI."
+    ],
+    faqs: [
+      { q: "What is Search Engine Optimization (SEO)?", a: "SEO is the process of optimizing your website's technical structure, content, and authority to rank higher in organic search engine results pages (SERPs) on Google and Bing." },
+      { q: "How long does it take to see results from SEO?", a: "SEO is a sustainable growth strategy. While technical fixes produce quick indexing improvements, noticeable ranking increases and organic traffic growth typically occur within 3 to 6 months." },
+      { q: "What is the difference between On-Page and Off-Page SEO?", a: "On-Page SEO involves optimizing elements on your website such as content, meta tags, headers, and internal links. Off-Page SEO focuses on building external authority through quality backlinks, brand mentions, and social signals." }
     ]
   },
   "geo": {

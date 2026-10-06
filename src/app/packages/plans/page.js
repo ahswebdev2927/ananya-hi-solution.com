@@ -418,8 +418,20 @@ function PlansContent() {
         if (!active) return;
         if (res.ok) {
           const data = await res.json();
-          if (data.plans && data.plans[packageTitle]) {
-            if (active) setPlansData(data.plans[packageTitle]);
+          if (data.plans) {
+            let matchedPlans = data.plans[packageTitle];
+            if (!matchedPlans) {
+              const keys = Object.keys(data.plans);
+              const foundKey = keys.find(
+                (k) =>
+                  k.toLowerCase() === packageTitle.toLowerCase() ||
+                  (packageTitle.toLowerCase().includes("seo") && k.toLowerCase().includes("seo"))
+              );
+              if (foundKey) {
+                matchedPlans = data.plans[foundKey];
+              }
+            }
+            if (active) setPlansData(matchedPlans || []);
           } else {
             if (active) setPlansData([]);
           }

@@ -37,9 +37,9 @@
       "iconName": "code"
     },
     {
-      "id": "aeo",
-      "title": "AEO (Answer Engine)",
-      "desc": "Optimize your content footprint to rank as the primary answer inside conversational AI search engines like ChatGPT, Claude, and Gemini.",
+      "id": "seo",
+      "title": "SEO (Search Engine Optimization)",
+      "desc": "Boost your organic search rankings and drive targeted traffic with technical SEO, keyword optimization, and high-authority link building.",
       "iconName": "trending-up"
     },
     {
@@ -412,15 +412,15 @@
           "link": "/services/youtube-seo"
         },
         {
-          "title": "AEO, GEO, AIO, SXO",
-          "image": "/images/hero/aio.jpg",
+          "title": "SEO, GEO, AIO, SXO",
+          "image": "/images/hero/seo_banner.jpg",
           "features": [
             "Complete Website SEO & Audit.",
-            "Answer Engine & AI Visibility.",
+            "Search Engine & AI Visibility.",
             "Search Experience Optimisation (SXO).",
             "Social Profile & Brand Mentions."
           ],
-          "link": "/services/aeo"
+          "link": "/services/seo"
         }
       ]
     },
@@ -1263,7 +1263,7 @@
         ]
       }
     ],
-    "AEO, GEO, AIO, SXO": [
+    "SEO, GEO, AIO, SXO": [
       {
         "name": "Basic Plan",
         "icon": "🎯",

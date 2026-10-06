@@ -221,6 +221,13 @@ async function migrate() {
     }
   }
 
+  // Clear existing structures to avoid duplicate records on re-migration
+  await client.execute("DELETE FROM pricing_plans");
+  await client.execute("DELETE FROM package_cards");
+  await client.execute("DELETE FROM package_categories");
+  await client.execute("DELETE FROM banners");
+  await client.execute("DELETE FROM marquee_logos");
+
   // 4. Packages & Categories & Cards
   if (Array.isArray(dbJson.packages)) {
     console.log(`📥 Migrating ${dbJson.packages.length} package categories & cards...`);
