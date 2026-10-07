@@ -11,12 +11,12 @@ const ServicesContext = createContext({
 
 // Fallback services in case the API fails or is slow, ensuring fast paints
 const fallbackServices = [
-  { id: "web-design", title: "Website Design", iconName: "globe", image: "/images/hero/web-design.png" },
-  { id: "digital-marketing", title: "Digital Marketing", iconName: "trending-up", image: "/images/hero/digital-marketing.png" },
-  { id: "mobile-app", title: "Mobile Application", iconName: "smartphone", image: "/images/hero/mobile-app.png" },
-  { id: "ecommerce-app", title: "eCommerce Application", iconName: "shopping-cart", image: "/images/hero/ecommerce-app.png" },
-  { id: "video-production", title: "Video Production", iconName: "video", image: "/images/hero/video-production.jpg" },
-  { id: "software-development", title: "Software Development", iconName: "code", image: "/images/hero/software-development.png" },
+  { id: "web-design", title: "Website Design", iconName: "globe" },
+  { id: "digital-marketing", title: "Digital Marketing", iconName: "trending-up" },
+  { id: "mobile-app", title: "Mobile Application", iconName: "smartphone" },
+  { id: "ecommerce-app", title: "eCommerce Application", iconName: "shopping-cart" },
+  { id: "video-production", title: "Video Production", iconName: "video" },
+  { id: "software-development", title: "Software Development", iconName: "code" },
 ];
 
 export function ServicesProvider({ children }) {

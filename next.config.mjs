@@ -4,18 +4,6 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "res.cloudinary.com",
-      },
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-    ],
-  },
   async redirects() {
     return [
       {
