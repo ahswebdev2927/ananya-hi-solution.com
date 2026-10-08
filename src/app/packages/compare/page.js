@@ -154,6 +154,12 @@ export default function PackageComparePage() {
   const [discountCode, setDiscountCode] = useState("");
   const [isDiscountVerified, setIsDiscountVerified] = useState(false);
   const [discountError, setDiscountError] = useState("");
+  const [proposalPdfConfig, setProposalPdfConfig] = useState({
+    packageDurations: {},
+    excludeGst: false,
+    hasActiveDiscount: false,
+    discountPercent: 0,
+  });
 
   const [modalFormData, setModalFormData] = useState({ name: "", company: "", phone: "", email: "" });
   const [modalError, setModalError] = useState("");
@@ -219,54 +225,76 @@ export default function PackageComparePage() {
     }
   };
 
-  // Compile selected combo plans and final grand total
+  // Helper to compile combo items given durations, gst, and discount options
+  const computeComboItems = (durations = {}, isExcludeGst = false, activeDiscount = false, discountPct = 0) => {
+    return comparisonSlots.map((slot) => {
+      if (!slot.packageTitle || !slot.planName) return null;
+      const categoryPlans = allPlansData[slot.packageTitle] || [];
+      const selectedPlan = categoryPlans.find(p => p.name === slot.planName);
+      if (!selectedPlan) return null;
+
+      const rawMonthlyPrice = parsePrice(selectedPlan.price);
+      const isWebsite = isWebsitePackage(slot.packageTitle);
+      const durationMonths = isWebsite ? 1 : (durations[slot.packageTitle] || 1);
+
+      const basePrice = rawMonthlyPrice * durationMonths;
+      const itemDiscount = activeDiscount
+        ? Math.round(basePrice * (discountPct / 100))
+        : 0;
+      const discountedBase = basePrice - itemDiscount;
+
+      const baseMonthlyGst = Math.round((discountedBase / durationMonths) * 0.18);
+      const gstAmount = isExcludeGst ? 0 : Math.round(discountedBase * 0.18);
+      const totalWithGst = discountedBase + gstAmount;
+
+      return {
+        packageTitle: slot.packageTitle,
+        planName: slot.planName,
+        monthlyPrice: rawMonthlyPrice,
+        durationMonths,
+        isWebsite,
+        basePrice,
+        hasDiscount: activeDiscount,
+        discountPercent: activeDiscount ? discountPct : 0,
+        itemDiscount,
+        discountedBase,
+        baseMonthlyGst,
+        gstAmount,
+        totalWithGst,
+        rawPlanPriceStr: selectedPlan.price,
+        rawPlanBillingStr: selectedPlan.billing
+      };
+    }).filter(Boolean);
+  };
+
+  // Compile selected combo plans and final grand total for live modal & UI
   const numericDiscountPercent = parseFloat(discountPercent) || 0;
   const hasActiveDiscount = applyDiscount && isDiscountVerified && numericDiscountPercent > 0;
 
-  const selectedComboItems = comparisonSlots.map((slot) => {
-    if (!slot.packageTitle || !slot.planName) return null;
-    const categoryPlans = allPlansData[slot.packageTitle] || [];
-    const selectedPlan = categoryPlans.find(p => p.name === slot.planName);
-    if (!selectedPlan) return null;
-
-    const rawMonthlyPrice = parsePrice(selectedPlan.price);
-    const isWebsite = isWebsitePackage(slot.packageTitle);
-    const durationMonths = isWebsite ? 1 : (packageDurations[slot.packageTitle] || 1);
-
-    const basePrice = rawMonthlyPrice * durationMonths;
-    const itemDiscount = hasActiveDiscount
-      ? Math.round(basePrice * (numericDiscountPercent / 100))
-      : 0;
-    const discountedBase = basePrice - itemDiscount;
-
-    const baseMonthlyGst = Math.round((discountedBase / durationMonths) * 0.18);
-    const gstAmount = excludeGst ? 0 : Math.round(discountedBase * 0.18);
-    const totalWithGst = discountedBase + gstAmount;
-
-    return {
-      packageTitle: slot.packageTitle,
-      planName: slot.planName,
-      monthlyPrice: rawMonthlyPrice,
-      durationMonths,
-      isWebsite,
-      basePrice,
-      hasDiscount: hasActiveDiscount,
-      discountPercent: hasActiveDiscount ? numericDiscountPercent : 0,
-      itemDiscount,
-      discountedBase,
-      baseMonthlyGst,
-      gstAmount,
-      totalWithGst,
-      rawPlanPriceStr: selectedPlan.price,
-      rawPlanBillingStr: selectedPlan.billing
-    };
-  }).filter(Boolean);
+  const selectedComboItems = computeComboItems(
+    packageDurations,
+    excludeGst,
+    hasActiveDiscount,
+    numericDiscountPercent
+  );
 
   const totalBase = selectedComboItems.reduce((sum, item) => sum + item.basePrice, 0);
   const totalDiscount = selectedComboItems.reduce((sum, item) => sum + item.itemDiscount, 0);
   const totalDiscountedBase = selectedComboItems.reduce((sum, item) => sum + item.discountedBase, 0);
   const totalGst = selectedComboItems.reduce((sum, item) => sum + item.gstAmount, 0);
   const finalGrandTotal = totalDiscountedBase + totalGst;
+
+  // Snapshot combo items and totals used strictly for PDF rendering
+  const pdfComboItems = computeComboItems(
+    proposalPdfConfig.packageDurations,
+    proposalPdfConfig.excludeGst,
+    proposalPdfConfig.hasActiveDiscount,
+    proposalPdfConfig.discountPercent
+  );
+
+  const pdfTotalDiscountedBase = pdfComboItems.reduce((sum, item) => sum + item.discountedBase, 0);
+  const pdfTotalGst = pdfComboItems.reduce((sum, item) => sum + item.gstAmount, 0);
+  const pdfFinalGrandTotal = pdfTotalDiscountedBase + pdfTotalGst;
 
   // === Geometry constants for PDF page layout (all in px at 794×1123 canvas) ===
   const PAGE_CONTENT_HEIGHT = 955;   // 1123 - 40(top pad) - 80(bottom pad) - 18(meta header) - 30(footer)
@@ -287,13 +315,13 @@ export default function PackageComparePage() {
   };
 
   // Dynamically divide selected items into page chunks with smooth feature flow
-  const generateProposalPages = () => {
+  const generateProposalPages = (items = pdfComboItems) => {
     const pages = [];
     let currentPageContent = [];
     let remainingHeight = PAGE_CONTENT_HEIGHT - COVER_HEADER_HEIGHT; // Page 1 has cover
     let isFirstBlockOnPage = true;
 
-    selectedComboItems.forEach((item, itemIndex) => {
+    items.forEach((item, itemIndex) => {
       const allFeatures = getItemFeatures(item);
       let featuresRemaining = [...allFeatures];
       let isFirstChunk = true;
@@ -359,7 +387,7 @@ export default function PackageComparePage() {
     });
 
     // Now handle the summary block
-    const summaryHeight = SUMMARY_BASE + selectedComboItems.length * SUMMARY_ROW_HEIGHT;
+    const summaryHeight = SUMMARY_BASE + items.length * SUMMARY_ROW_HEIGHT;
     if (remainingHeight < summaryHeight) {
       if (currentPageContent.length > 0) {
         pages.push(currentPageContent);
@@ -373,7 +401,7 @@ export default function PackageComparePage() {
     return pages;
   };
 
-  const proposalPages = selectedComboItems.length > 0 ? generateProposalPages() : [];
+  const proposalPages = pdfComboItems.length > 0 ? generateProposalPages(pdfComboItems) : [];
 
   // Date formatting helpers
   const formatDownloadDateTime = (date) => {
@@ -546,7 +574,9 @@ export default function PackageComparePage() {
   };
 
   const handleFinalPdfGenerate = async () => {
-    let verified = false;
+    let targetApplyDiscount = false;
+    let targetDiscountPercent = 0;
+
     if (applyDiscount) {
       const numericDiscount = parseFloat(discountPercent);
       if (isNaN(numericDiscount) || numericDiscount <= 0 || numericDiscount >= 100) {
@@ -566,16 +596,29 @@ export default function PackageComparePage() {
         setDiscountError("Invalid authorization passcode. Discount cannot be applied.");
         return;
       }
-      verified = true;
       setIsDiscountVerified(true);
       setDiscountError("");
+      targetApplyDiscount = true;
+      targetDiscountPercent = numericDiscount;
     }
+
+    // Freeze snapshot of settings for PDF template
+    const snapshot = {
+      packageDurations: { ...packageDurations },
+      excludeGst: !!excludeGst,
+      hasActiveDiscount: targetApplyDiscount,
+      discountPercent: targetDiscountPercent,
+    };
+    setProposalPdfConfig(snapshot);
+
+    const currentLead = { ...leadInfo };
+
     setLeadModalOpen(false);
-    triggerPdfGeneration(leadInfo);
     resetProposalModalForm();
+    await triggerPdfGeneration(currentLead, snapshot);
   };
 
-  const triggerPdfGeneration = async (currentLeadInfo) => {
+  const triggerPdfGeneration = async (currentLeadInfo, activeSnapshot) => {
     console.log("Starting triggerPdfGeneration...");
     const now = new Date();
     setDownloadDateTime(formatDownloadDateTime(now));
@@ -643,7 +686,9 @@ export default function PackageComparePage() {
               email: currentLeadInfo.email,
               phone: currentLeadInfo.phone,
               company: currentLeadInfo.company,
-              items: selectedComboItems.map(item => `${item.packageTitle} (${item.planName})`)
+              items: pdfComboItems.map(item => `${item.packageTitle} (${item.planName})`),
+              discountApplied: activeSnapshot?.hasActiveDiscount ? `${activeSnapshot.discountPercent}%` : "None",
+              excludeGst: !!activeSnapshot?.excludeGst
             }
           });
           localStorage.setItem("ahs_actions_history", JSON.stringify(list));
@@ -1434,15 +1479,15 @@ export default function PackageComparePage() {
                                   <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Sl.</th>
                                   <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Service Package & Selected Plan</th>
                                   <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Base Cost</th>
-                                  {hasActiveDiscount && (
-                                    <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#059669" }}>Discount ({discountPercent}%)</th>
+                                  {proposalPdfConfig.hasActiveDiscount && (
+                                    <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#059669" }}>Discount ({proposalPdfConfig.discountPercent}%)</th>
                                   )}
-                                  <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>{excludeGst ? "GST" : "GST (18%)"}</th>
+                                  <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>{proposalPdfConfig.excludeGst ? "GST" : "GST (18%)"}</th>
                                   <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", borderBottom: "2px solid #e2e8f0", color: "#475569" }}>Total Cost</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {selectedComboItems.map((cItem, cIdx) => (
+                                {pdfComboItems.map((cItem, cIdx) => (
                                   <tr key={cIdx} style={{ borderBottom: "1px solid #e2e8f0" }}>
                                     <td style={{ padding: "8px 10px", color: "#475569" }}>{cIdx + 1}</td>
                                     <td style={{ padding: "8px 10px", fontWeight: "700", color: "#0f172a" }}>
@@ -1454,10 +1499,10 @@ export default function PackageComparePage() {
                                       ) : null}
                                     </td>
                                     <td style={{ padding: "8px 10px", textAlign: "right", color: "#334155" }}>₹{cItem.basePrice.toLocaleString("en-IN")}</td>
-                                    {hasActiveDiscount && (
+                                    {proposalPdfConfig.hasActiveDiscount && (
                                       <td style={{ padding: "8px 10px", textAlign: "right", color: "#059669", fontWeight: "600" }}>- ₹{cItem.itemDiscount.toLocaleString("en-IN")}</td>
                                     )}
-                                    <td style={{ padding: "8px 10px", textAlign: "right", color: "#334155" }}>{excludeGst ? "Excluded" : `₹${cItem.gstAmount.toLocaleString("en-IN")}`}</td>
+                                    <td style={{ padding: "8px 10px", textAlign: "right", color: "#334155" }}>{proposalPdfConfig.excludeGst ? "Excluded" : `₹${cItem.gstAmount.toLocaleString("en-IN")}`}</td>
                                     <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: "700", color: "#0f75bc" }}>₹{cItem.totalWithGst.toLocaleString("en-IN")}</td>
                                   </tr>
                                 ))}
@@ -1476,16 +1521,16 @@ export default function PackageComparePage() {
                             }}>
                               <span style={{ fontSize: "12px", fontWeight: "800", color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                                 Final Combo Grand Total:
-                                {hasActiveDiscount && (
+                                {proposalPdfConfig.hasActiveDiscount && (
                                   <span style={{ marginLeft: "6px", color: "#059669", fontSize: "11px", fontWeight: "700" }}>
-                                    ({discountPercent}% Discount Applied)
+                                    ({proposalPdfConfig.discountPercent}% Discount Applied)
                                   </span>
                                 )}
                               </span>
                               <span style={{ fontSize: "18px", fontWeight: "900", color: "#166534" }}>
-                                ₹{finalGrandTotal.toLocaleString("en-IN")}{" "}
+                                ₹{pdfFinalGrandTotal.toLocaleString("en-IN")}{" "}
                                 <span style={{ fontSize: "10px", fontWeight: "600" }}>
-                                  {excludeGst ? "(GST Excluded)" : "(incl. 18% GST)"}
+                                  {proposalPdfConfig.excludeGst ? "(GST Excluded)" : "(incl. 18% GST)"}
                                 </span>
                               </span>
                             </div>
@@ -1504,7 +1549,7 @@ export default function PackageComparePage() {
                         );
                       } else {
                         // Render Plan chunk (feature-level split across pages)
-                        const planIndex = selectedComboItems.findIndex(p => p.packageTitle === item.packageTitle && p.planName === item.planName) + 1;
+                        const planIndex = pdfComboItems.findIndex(p => p.packageTitle === item.packageTitle && p.planName === item.planName) + 1;
 
                         return (
                           <div key={`plan-block-${itemIdx}`} style={{ borderTop: itemIdx > 0 ? "1px solid #e2e8f0" : "none", paddingTop: itemIdx > 0 ? "14px" : "0px" }}>
@@ -1568,10 +1613,10 @@ export default function PackageComparePage() {
                                       <span>{!item.isWebsite && item.durationMonths > 1 ? `Plan Amount (₹${item.monthlyPrice.toLocaleString("en-IN")} x ${item.durationMonths} mo):` : "Plan Amount:"}</span>
                                       <span style={{ fontWeight: "600", color: "#0f172a" }}>₹{item.basePrice.toLocaleString("en-IN")}</span>
                                     </div>
-                                    {hasActiveDiscount && (
+                                    {proposalPdfConfig.hasActiveDiscount && (
                                       <>
                                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#059669" }}>
-                                          <span>Discount ({discountPercent}%):</span>
+                                          <span>Discount ({proposalPdfConfig.discountPercent}%):</span>
                                           <span style={{ fontWeight: "600", color: "#059669" }}>- ₹{item.itemDiscount.toLocaleString("en-IN")}</span>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#1e293b", fontWeight: "600" }}>
@@ -1580,7 +1625,7 @@ export default function PackageComparePage() {
                                         </div>
                                       </>
                                     )}
-                                    {!excludeGst && (
+                                    {!proposalPdfConfig.excludeGst && (
                                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "#475569" }}>
                                         <span>{!item.isWebsite && item.durationMonths > 1 ? `GST 18% (₹${item.baseMonthlyGst.toLocaleString("en-IN")} x ${item.durationMonths} mo):` : "GST (18%):"}</span>
                                         <span style={{ fontWeight: "600", color: "#0f172a" }}>+ ₹{item.gstAmount.toLocaleString("en-IN")}</span>
