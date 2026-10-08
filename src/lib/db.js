@@ -10,22 +10,10 @@ let schemaInitialized = false;
  * - Production: Turso Cloud if TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are provided
  * - Development: Local SQLite file (data/ananya.db)
  */
-function createLocalDbClient() {
-  const dataDir = path.join(process.cwd(), "data");
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  const dbPath = path.join(dataDir, "ananya.db");
-  return createClient({
-    url: `file:${dbPath}`,
-  });
-}
-
 export function getDbClient() {
   if (dbClient) return dbClient;
 
-  let url = (process.env.TURSO_DATABASE_URL || process.env.TURSO_CONNECTION_URL)
-    ?.replace(/^["']|["']$/g, "")
+  let url = process.env.TURSO_DATABASE_URL?.replace(/^["']|["']$/g, "")
     ?.trim()
     ?.split(/[\s\r\n]+/)[0];
   let authToken = process.env.TURSO_AUTH_TOKEN?.replace(/^["']|["']$/g, "")
@@ -41,7 +29,15 @@ export function getDbClient() {
       authToken,
     });
   } else {
-    dbClient = createLocalDbClient();
+    // Local SQLite file setup
+    const dataDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const dbPath = path.join(dataDir, "ananya.db");
+    dbClient = createClient({
+      url: `file:${dbPath}`,
+    });
   }
 
   return dbClient;
@@ -53,7 +49,7 @@ export function getDbClient() {
 export async function initDatabaseSchema() {
   if (schemaInitialized) return;
 
-  let client = getDbClient();
+  const client = getDbClient();
 
   const statements = [
     // 1. Services Table
@@ -62,7 +58,6 @@ export async function initDatabaseSchema() {
       title TEXT NOT NULL,
       desc TEXT NOT NULL,
       icon_name TEXT DEFAULT 'globe',
-      image TEXT DEFAULT '',
       sort_order INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -216,17 +211,8 @@ export async function initDatabaseSchema() {
     `CREATE INDEX IF NOT EXISTS idx_applications_job ON job_applications(job_id);`,
   ];
 
-  try {
-    for (const stmt of statements) {
-      await client.execute(stmt);
-    }
-  } catch (err) {
-    console.warn("⚠️ Remote Turso database connection failed. Falling back to local SQLite database (data/ananya.db). Error:", err?.message || err);
-    dbClient = createLocalDbClient();
-    client = dbClient;
-    for (const stmt of statements) {
-      await client.execute(stmt);
-    }
+  for (const stmt of statements) {
+    await client.execute(stmt);
   }
 
   // Safe migration checks for blogs table extensions (slug & SEO fields)
@@ -243,13 +229,6 @@ export async function initDatabaseSchema() {
     } catch {
       // Column may already exist in SQLite/Turso
     }
-  }
-
-  // Safe migration check for services table image column
-  try {
-    await client.execute("ALTER TABLE services ADD COLUMN image TEXT;");
-  } catch {
-    // Column may already exist
   }
 
   try {

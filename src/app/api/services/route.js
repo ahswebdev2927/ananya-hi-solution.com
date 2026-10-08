@@ -6,7 +6,7 @@ export async function GET() {
     await initDatabaseSchema();
     const db = getDbClient();
     const result = await db.execute(`
-      SELECT id, title, desc, icon_name as iconName, image 
+      SELECT id, title, desc, icon_name as iconName 
       FROM services 
       ORDER BY sort_order ASC, created_at ASC
     `);
@@ -24,7 +24,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { id, title, desc, iconName, image } = body;
+    const { id, title, desc, iconName } = body;
 
     if (!id || !title || !desc) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -46,11 +46,11 @@ export async function POST(request) {
     const nextOrderRes = await db.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 as next_order FROM services");
     const nextOrder = nextOrderRes.rows[0]?.next_order || 0;
 
-    const newService = { id, title, desc, iconName: iconName || "globe", image: image || "" };
+    const newService = { id, title, desc, iconName: iconName || "globe" };
 
     await db.execute({
-      sql: "INSERT INTO services (id, title, desc, icon_name, image, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
-      args: [id, title, desc, newService.iconName, newService.image, nextOrder]
+      sql: "INSERT INTO services (id, title, desc, icon_name, sort_order) VALUES (?, ?, ?, ?, ?)",
+      args: [id, title, desc, newService.iconName, nextOrder]
     });
 
     return NextResponse.json({ success: true, service: newService });
@@ -67,7 +67,7 @@ export async function PUT(request) {
 
   try {
     const body = await request.json();
-    const { id, title, desc, iconName, image } = body;
+    const { id, title, desc, iconName } = body;
 
     if (!id || !title || !desc) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -76,18 +76,16 @@ export async function PUT(request) {
     await initDatabaseSchema();
     const db = getDbClient();
 
-    const updatedService = { id, title, desc, iconName: iconName || "globe", image: image || "" };
-
     const result = await db.execute({
-      sql: "UPDATE services SET title = ?, desc = ?, icon_name = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      args: [title, desc, updatedService.iconName, updatedService.image, id]
+      sql: "UPDATE services SET title = ?, desc = ?, icon_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [title, desc, iconName || "globe", id]
     });
 
     if (result.rowsAffected === 0) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, service: updatedService });
+    return NextResponse.json({ success: true, service: { id, title, desc, iconName: iconName || "globe" } });
   } catch (error) {
     console.error("Error updating service:", error);
     return NextResponse.json({ error: error.message || "Failed to update service" }, { status: 500 });
