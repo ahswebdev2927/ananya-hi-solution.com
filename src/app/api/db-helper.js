@@ -1,4 +1,4 @@
-import { getDbClient, initDatabaseSchema } from "../../lib/db";
+import { getDbClient, initDatabaseSchema, ensureInitialized } from "../../lib/db";
 
 // Simple token validation helper
 export function verifyToken(req) {
@@ -9,4 +9,5 @@ export function verifyToken(req) {
   return token === "ananya-secure-admin-token-2026";
 }
 
-export { getDbClient, initDatabaseSchema };
+export { getDbClient, initDatabaseSchema, ensureInitialized };
+

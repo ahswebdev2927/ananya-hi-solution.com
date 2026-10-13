@@ -256,3 +256,6 @@ export async function initDatabaseSchema() {
 
   schemaInitialized = true;
 }
+
+export const ensureInitialized = initDatabaseSchema;
+
