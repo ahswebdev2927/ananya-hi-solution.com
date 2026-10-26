@@ -1,4 +1,5 @@
 import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -22,11 +23,16 @@ export const metadata = {
   title: "Ananya Hi Solutions | Professional Web Design & Digital Marketing Agency",
   description: "Ananya Hi Solutions is a premium Web Design & Digital Marketing agency in Hyderabad, delivering creative solutions that help businesses grow online.",
   keywords: "web design, digital marketing, mobile application, ecommerce application, video production, software development, Hyderabad, digital agency",
+  verification: {
+    google: "o9CzPZe5yYKxmxiKsdximDoMMw2m95F2lm8brnJGc1s",
+  },
 };
 
 import { ServicesProvider } from "./context/ServicesContext";
 
 export default function RootLayout({ children }) {
+  const gaId = process.env.NEXT_PUBLIC_GA_ID;
+
   return (
     <html
       lang="en"
@@ -47,6 +53,28 @@ export default function RootLayout({ children }) {
         <ServicesProvider>
           {children}
         </ServicesProvider>
+        {gaId && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+            />
+            <Script
+              id="google-analytics"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}', {
+                    page_path: window.location.pathname,
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
       </body>
     </html>
   );
