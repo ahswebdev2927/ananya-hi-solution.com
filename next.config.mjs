@@ -7,6 +7,17 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "www.ananyahisolutions.com",
+          },
+        ],
+        destination: "https://ananyahisolutions.com/:path*",
+        permanent: true,
+      },
+      {
         source: "/services",
         destination: "/",
         permanent: false,
