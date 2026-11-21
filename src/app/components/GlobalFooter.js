@@ -140,7 +140,9 @@ export default function GlobalFooter() {
           aria-label="Chat on WhatsApp"
           style={{ display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
         >
-          <div className="chat-trigger-icon text-3xl">👩‍💻</div>
+          <div className="chat-trigger-icon text-3xl" suppressHydrationWarning={true}>
+            👩‍💻
+          </div>
         </a>
       </div>
     </>

@@ -50,7 +50,10 @@ export default function RootLayout({ children }) {
           } catch (e) {}
         `}} />
       </head>
-      <body className="min-h-full font-sans antialiased bg-slate-50 text-slate-900 transition-colors duration-300">
+      <body
+        className="min-h-full font-sans antialiased bg-slate-50 text-slate-900 transition-colors duration-300"
+        suppressHydrationWarning={true}
+      >
         <ServicesProvider>
           {children}
         </ServicesProvider>
