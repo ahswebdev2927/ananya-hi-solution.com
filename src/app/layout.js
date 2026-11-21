@@ -20,6 +20,7 @@ export const viewport = {
 };
 
 export const metadata = {
+  metadataBase: new URL("https://ananyahisolutions.com"),
   title: "Ananya Hi Solutions | Professional Web Design & Digital Marketing Agency",
   description: "Ananya Hi Solutions is a premium Web Design & Digital Marketing agency in Hyderabad, delivering creative solutions that help businesses grow online.",
   keywords: "web design, digital marketing, mobile application, ecommerce application, video production, software development, Hyderabad, digital agency",
