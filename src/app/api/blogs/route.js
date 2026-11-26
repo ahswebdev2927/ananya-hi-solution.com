@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { promises as fs } from "fs";
 import path from "path";
 import { getDbClient, initDatabaseSchema, verifyToken } from "../db-helper";
@@ -141,6 +142,18 @@ export async function POST(request) {
       ]
     });
 
+    // Trigger on-demand cache revalidation for sitemap, blog listings, and the new post
+    try {
+      revalidatePath("/sitemap.xml");
+      revalidatePath("/blogs");
+      if (newPost.slug) {
+        revalidatePath(`/blogs/${newPost.slug}`);
+      }
+      revalidatePath("/");
+    } catch (revErr) {
+      console.warn("Revalidation warning on POST /api/blogs:", revErr);
+    }
+
     return NextResponse.json({ success: true, blog: newPost });
   } catch (error) {
     console.error("Error publishing blog:", error);
@@ -249,6 +262,21 @@ export async function PUT(request) {
       ]
     });
 
+    // Trigger on-demand cache revalidation for sitemap, blog listings, and the updated post
+    try {
+      revalidatePath("/sitemap.xml");
+      revalidatePath("/blogs");
+      if (updatedBlog.slug) {
+        revalidatePath(`/blogs/${updatedBlog.slug}`);
+      }
+      if (existing.slug && existing.slug !== updatedBlog.slug) {
+        revalidatePath(`/blogs/${existing.slug}`);
+      }
+      revalidatePath("/");
+    } catch (revErr) {
+      console.warn("Revalidation warning on PUT /api/blogs:", revErr);
+    }
+
     return NextResponse.json({ success: true, blog: updatedBlog });
   } catch (error) {
     console.error("Error updating blog:", error);
@@ -272,13 +300,14 @@ export async function DELETE(request) {
     await initDatabaseSchema();
     const db = getDbClient();
 
-    // 1. Fetch blog before deletion to know its cover_image
+    // 1. Fetch blog before deletion to know its cover_image and slug
     const existingRes = await db.execute({
-      sql: "SELECT cover_image FROM blogs WHERE id = ?",
+      sql: "SELECT cover_image, slug FROM blogs WHERE id = ?",
       args: [id]
     });
 
     const coverImage = existingRes.rows?.[0]?.cover_image;
+    const deletedSlug = existingRes.rows?.[0]?.slug;
 
     // 2. Delete blog from database
     const result = await db.execute({
@@ -315,6 +344,18 @@ export async function DELETE(request) {
       }
     } catch (fsErr) {
       console.warn("Could not delete blog images on server:", fsErr);
+    }
+
+    // Trigger on-demand cache revalidation for sitemap and blog listings
+    try {
+      revalidatePath("/sitemap.xml");
+      revalidatePath("/blogs");
+      if (deletedSlug) {
+        revalidatePath(`/blogs/${deletedSlug}`);
+      }
+      revalidatePath("/");
+    } catch (revErr) {
+      console.warn("Revalidation warning on DELETE /api/blogs:", revErr);
     }
 
     return NextResponse.json({ success: true, message: "Blog post and associated images deleted successfully" });

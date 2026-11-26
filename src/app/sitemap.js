@@ -1,6 +1,7 @@
 import { getDbClient, initDatabaseSchema } from "../lib/db.js";
 
-export const revalidate = 3600; // Cache for 1 hour
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const BASE_URL = "https://ananyahisolutions.com";
 
@@ -114,9 +115,18 @@ export default async function sitemap() {
           const slug = blog.slug || blog.id;
           const lastMod =
             blog.updatedAt || blog.publishDate || blog.createdAt || currentDate;
+          let safeDate = currentDate;
+          try {
+            const parsed = new Date(lastMod);
+            if (!isNaN(parsed.getTime())) {
+              safeDate = parsed.toISOString();
+            }
+          } catch (e) {
+            safeDate = currentDate;
+          }
           return {
             url: `${BASE_URL}/blogs/${encodeURIComponent(slug)}`,
-            lastModified: new Date(lastMod).toISOString(),
+            lastModified: safeDate,
             changeFrequency: "weekly",
             priority: 0.7,
           };
